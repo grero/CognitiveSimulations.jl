@@ -6,7 +6,7 @@ using StableRNGs
 using StatsBase
 
 function train_model(trialstruct, nhidden::Int64;batchsize=256, randomize_go_cue=false, σ=0.0316f0, post_cue_multiplier=2.0f0, rseed=12335, nepochs=20_000, accuracy_threshold=0.95f0,
-                                                learning_rate=Float32(1e-4), redo=false)
+                    learning_rate=Float32(1e-4), redo=false, go_cue_onset_min::Float32=zero(Float32), go_cue_onset_max::Float32=go_cue_onset_min)
 
     rng = StableRNG(rseed)
     task_name = RNNTrialStructures.get_name(trialstruct)
@@ -20,14 +20,16 @@ function train_model(trialstruct, nhidden::Int64;batchsize=256, randomize_go_cue
 
     model = RecurrentNetworkModels.LeakyRNNModel(ninputs, nhidden, noutputs)
     trial_iterator = RNNTrialStructures.generate_trials(trialstruct, batchsize;randomize_go_cue=randomize_go_cue,
-                                                        σ=σ,
+                                                        σ=σ, go_cue_onset_min=go_cue_onset_min, go_cue_onset_max=go_cue_onset_max,
                                                         post_cue_multiplier=post_cue_multiplier, rng=rng, rseed=rseed)
     args = Dict(:batchsize => batchsize,
                 :randomize_go_cue => randomize_go_cue,
                 :σ => σ,
                 :post_cue_multiplier => post_cue_multiplier,
                 :rng => rng,
-                :rseed => rseed)
+                :rseed => rseed,
+                :go_cue_onset_min => go_cue_onset_min,
+                :go_cue_onset_max => go_cue_onset_max)
 
     cd(dname) do
         # save only once since all models in this folder will use the same trial structure
