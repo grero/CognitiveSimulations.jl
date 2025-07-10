@@ -36,7 +36,10 @@ function train_model(trialstruct, nhidden::Int64;batchsize=256, randomize_go_cue
         if !isfile("trialstruct.jld2")
             JLD2.save("trialstruct.jld2", Dict("trialstruct" => trialstruct, "args" => args))
         end
-        ps = RecurrentNetworkModels.train_model(model, trial_iterator, (ŷ,y)->mean(RNNTrialStructures.matches(trialstruct, ŷ,y));nepochs=nepochs,redo=redo,
+        compute_acc(ŷ, y) = mean(RNNTrialStructures.matches(trialstruct, ŷ,y))
+        compute_perf(ŷ, y) = mean(RNNTrialStructures.matches(trialstruct, ŷ,y;require_fixation=false))
+
+        ps = RecurrentNetworkModels.train_model(model, trial_iterator, compute_acc, compute_perf;nepochs=nepochs,redo=redo,
                                                                                           learning_rate=learning_rate, accuracy_threshold=accuracy_threshold,
                                                                                           save_file="model_state.jld2",h=RNNTrialStructures.signature(trialstruct),rseed=rseed)
         return ps, model, trial_iterator
