@@ -4,6 +4,8 @@ author = "Roger Herikstad <rherikstad@proton.me"
 
 [deps]
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+LinearRegressionUtils = "41fc471e-1f5c-4b2d-bbd1-04f3567f437e"
+MultiDimensionalTimeSeriesPlots = "72b6be8f-0b79-4fcf-b71d-125970ec4fc4"
 RNNTrialStructures = "1c0943b8-e38f-498f-b6a0-1f910535fd85"
 RecurrentNetworkModels = "60024d2f-e447-450b-ab68-c236a8c9f1ce"
 StableRNGs = "860ef19b-820b-49d6-a774-d7a799459cd3"
