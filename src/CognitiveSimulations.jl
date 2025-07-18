@@ -70,7 +70,8 @@ function train_model(trialstruct, nhidden::Int64;batchsize=256, randomize_go_cue
 
         ps = RecurrentNetworkModels.train_model(model, trial_iterator, compute_acc, compute_perf;nepochs=nepochs,redo=redo,
                                                                                           learning_rate=learning_rate, accuracy_threshold=accuracy_threshold,
-                                                                                          save_file="model_state.jld2",h=trial_iterator.arghash,rseed=rseed)
+                                                                                          save_file="model_state.jld2",h=trial_iterator.arghash,rseed=rseed,
+                                                                                          load_only=load_only)
         return ps, model, trial_iterator
     end
 end
