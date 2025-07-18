@@ -65,8 +65,8 @@ function train_model(trialstruct, nhidden::Int64;batchsize=256, randomize_go_cue
             JLD2.save("trialstruct.jld2", Dict("trialstruct" => trialstruct))
         end
         JLD2.save(args_file, Dict("args"=>args))
-        compute_acc(ŷ, y) = mean(RNNTrialStructures.matches(trialstruct, ŷ,y))
-        compute_perf(ŷ, y) = mean(RNNTrialStructures.matches(trialstruct, ŷ,y;require_fixation=false))
+        compute_acc(ŷ, y) = mean(RNNTrialStructures.performance(trialstruct, ŷ,y))
+        compute_perf(ŷ, y) = mean(RNNTrialStructures.performance(trialstruct, ŷ,y;require_fixation=false))
 
         ps = RecurrentNetworkModels.train_model(model, trial_iterator, compute_acc, compute_perf;nepochs=nepochs,redo=redo,
                                                                                           learning_rate=learning_rate, accuracy_threshold=accuracy_threshold,
