@@ -27,9 +27,9 @@ function load_model(fname::String)
     ps, st, trialstruct, args, trials_args
 end
 
-# TODO: We should not use stim_2_onset specifically. Rather, stim_onset should a vector, with an optional shift for each stimulus.
 function train_model(trialstruct, nhidden::Int64;batchsize=256, randomize_go_cue=false, σ=0.0316f0, post_cue_multiplier=2.0f0, rseed=12335, nepochs=20_000, accuracy_threshold=0.95f0,
-                    learning_rate=Float32(1e-4), redo=false, go_cue_onset_min::Float32=zero(Float32), go_cue_onset_max::Float32=go_cue_onset_min, stim_2_onset_max::Float32=0.0f0, stim_2_onset_min=stim_2_onset_min)
+        learning_rate=Float32(1e-4), redo=false, go_cue_onset_min::Float32=zero(Float32), go_cue_onset_max::Float32=go_cue_onset_min, stim_onset_min::Vector{Float32}=zeros(Float32,
+        trialstruct.nangles), stim_onset_max=stim_onset_min, load_only=false)
 
     rng = StableRNG(rseed)
     task_name = RNNTrialStructures.get_name(trialstruct)
@@ -45,7 +45,7 @@ function train_model(trialstruct, nhidden::Int64;batchsize=256, randomize_go_cue
     trial_iterator = RNNTrialStructures.generate_trials(trialstruct, batchsize;randomize_go_cue=randomize_go_cue,
                                                         σ=σ, go_cue_onset_min=go_cue_onset_min, go_cue_onset_max=go_cue_onset_max,
                                                         post_cue_multiplier=post_cue_multiplier,
-                                                        stim_onset_min=stim_2_onset_min, stim_onset_max=stim_2_onset_max,
+                                                        stim_onset_min=stim_onset_min, stim_onset_max=stim_onset_max,
                                                         rng=rng, rseed=rseed)
     args_file = "trial_iterator_$(string(trial_iterator.arghash, base=16)).jld2"
     args = Dict(:batchsize => batchsize,
@@ -56,8 +56,8 @@ function train_model(trialstruct, nhidden::Int64;batchsize=256, randomize_go_cue
                 :rseed => rseed,
                 :go_cue_onset_min => go_cue_onset_min,
                 :go_cue_onset_max => go_cue_onset_max,
-                :stim_onset_min => stim_2_onset_min,
-                :stim_onset_max => stim_2_onset_max)
+                :stim_onset_min => stim_onset_min,
+                :stim_onset_max => stim_onset_max)
 
     cd(dname) do
         # save only once since all models in this folder will use the same trial structure
