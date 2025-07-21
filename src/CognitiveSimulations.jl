@@ -4,6 +4,19 @@ using RNNTrialStructures
 using JLD2
 using StableRNGs
 using StatsBase
+using MultiDimensionalTimeSeriesPlots
+
+"""
+    get_subspace(X::AbstractVector{T,3}, θ::Matrix{T2}, idx0::Int64) where T <: Real where T2
+
+Find an orthongal subspace containing information about θ at time point `idx0`.
+"""
+function get_subspace(X::AbstractArray{T,3}, θ::Matrix{T2}, idx0::Int64) where T <: Real where T2
+    Y = dropdims(mean(X[:,idx0:idx0+1, :],dims=2),dims=2)   
+    _,w12 = MultiDimensionalTimeSeriesPlots.rpca(Y, MultiDimensionalTimeSeriesPlots.Angle.(θ[:,1]), MultiDimensionalTimeSeriesPlots.Angle.(θ[:,2]))
+    Z12 = mapslices(x->w12*x, X, dims=1)
+    Z12, w12
+end
 
 function load_model(fname::String)
     ps,st = JLD2.load(fname, "params","state")
