@@ -5,6 +5,7 @@ using JLD2
 using StableRNGs
 using StatsBase
 using MultiDimensionalTimeSeriesPlots
+using Glob
 
 """
     get_subspace(X::AbstractVector{T,3}, θ::Matrix{T2}, idx0::Int64) where T <: Real where T2
@@ -38,6 +39,75 @@ function load_model(fname::String)
         trials_args = Dict()
     end
     ps, st, trialstruct, args, trials_args
+end
+
+function find_model(trialstruct;kwargs...)
+    dargs = Dict(kwargs)
+    # find the directory for the requested trialstruct
+    task_name = RNNTrialStructures.get_name(trialstruct)
+    task_signature = RNNTrialStructures.signature(trialstruct)
+    dname = joinpath(@__DIR__, "..", "data", "$(task_name)_$(string(task_signature,base=16))")
+    # find all trial_iterator files
+    args_file = "trial_iterator_*.jld2"
+    cd(dname) do
+        mpfiles = glob("model_state_args_*.jld2")
+        good_mpfiles = String[]
+        trial_iterator_signs = UInt32[]
+        for mf in mpfiles
+            keep = true 
+            args = JLD2.load(mf)
+            for (k,v) in args
+                if k in keys(dargs)
+                    if v != dargs[k]
+                        keep = false
+                        break
+                    end
+                end
+            end
+            if keep
+                if "h0" in keys(args)
+                    push!(trial_iterator_signs, args["h0"])
+                else
+                    push!(trial_iterator_signs, UInt32(0))
+                end
+                push!(good_mpfiles, mf)
+            end
+        end
+
+        arg_files = glob(args_file)
+        model_files = String[]
+        trial_files = String[]
+        for af in arg_files
+            # check the hash
+            keep = false 
+            ii = 0
+            for (jj,sig) in enumerate(trial_iterator_signs)
+                ss = string(sig, base=16)
+                if occursin(ss, af)
+                    keep = true
+                    ii = jj
+                    break
+                end
+            end
+            if keep
+                args = JLD2.load(af, "args")
+                for (k,v) in args
+                    if k in keys(dargs)
+                        if v != dargs[k]
+                            keep = false
+                            break
+                        end
+                    end
+                end
+            end
+            if keep
+                push!(trial_files, joinpath(dname,af))
+                push!(model_files, joinpath(dname,good_mpfiles[ii]))
+            end
+        end
+        model_files, trial_files
+    end
+    # find all model parameter files
 end
 
 function train_model(trialstruct, nhidden::Int64;batchsize=256, randomize_go_cue=false, σ=0.0316f0, post_cue_multiplier=2.0f0, rseed=12335, nepochs=20_000, accuracy_threshold=0.95f0,
