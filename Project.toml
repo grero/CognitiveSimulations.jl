@@ -1,6 +1,7 @@
 name = "CognitiveSimulations"
 uuid = "d518a2db-0ad9-4c39-9845-2af4103574d5"
 author = "Roger Herikstad <rherikstad@proton.me"
+version = "0.2.0"
 
 [deps]
 Glob = "c27321d9-0574-5035-807b-f59d2c89b15c"
