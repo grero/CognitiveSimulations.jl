@@ -146,9 +146,9 @@ function train_model(trial_iterator::RNNTrialStructures.TrialIterator, nhidden::
         if !isfile("trialstruct.jld2")
             JLD2.save("trialstruct.jld2", Dict("trialstruct" => trialstruct))
         end
-        JLD2.save(args_file, Dict("args"=>args))
-        compute_acc(ŷ, y) = mean(RNNTrialStructures.performance(trialstruct, ŷ,y))
-        compute_perf(ŷ, y) = mean(RNNTrialStructures.performance(trialstruct, ŷ,y;require_fixation=false))
+        JLD2.save(args_file, Dict("args"=>trial_iterator.args))
+        compute_acc(ŷ, y) = performance_aggregator(RNNTrialStructures.performance(trialstruct, ŷ,y))
+        compute_perf(ŷ, y) = performance_aggregator(RNNTrialStructures.performance(trialstruct, ŷ,y;require_fixation=false))
 
         ps = RecurrentNetworkModels.train_model(model, trial_iterator, compute_acc, compute_perf;nepochs=nepochs,redo=redo,
                                                                                           learning_rate=learning_rate, accuracy_threshold=accuracy_threshold,
