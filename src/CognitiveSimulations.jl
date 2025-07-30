@@ -2,6 +2,7 @@ module CognitiveSimulations
 using RecurrentNetworkModels
 using RNNTrialStructures
 using JLD2
+using Random
 using StableRNGs
 using StatsBase
 using MultiDimensionalTimeSeriesPlots
@@ -110,11 +111,24 @@ function find_model(trialstruct;kwargs...)
     # find all model parameter files
 end
 
-function train_model(trialstruct, nhidden::Int64;batchsize=256, randomize_go_cue=false, σ=0.0316f0, post_cue_multiplier=2.0f0, rseed=12335, nepochs=20_000, accuracy_threshold=0.95f0,
-        learning_rate=Float32(1e-4), redo=false, go_cue_onset_min::Float32=zero(Float32), go_cue_onset_max::Float32=go_cue_onset_min, stim_onset_min::Vector{Float32}=zeros(Float32,
-        trialstruct.nangles), stim_onset_max=stim_onset_min, stim_onset_step=fill(trialstruct.dt, trialstruct.nangles), load_only=false)
+function train_model(trial_iterator::RNNTrialStructures.TrialIterator, nhidden::Int64; rseed::Union{UInt32,Nothing}=nothing, rng::Union{AbstractRNG, Nothing}=nothing, nepochs=20_000, accuracy_threshold=0.95f0,
+        learning_rate=Float32(1e-4), redo=false,performance_aggregator::Function = mean, load_only=false)
 
-    rng = StableRNG(rseed)
+    if rseed === nothing
+        if haskey(trial_iterator.args, :rseed)
+            rseed = trial_iterator.args.rseed
+        else
+            rseed = UInt32(1234)
+        end
+    end
+    if rng === nothing
+        if haskey(trial_iterator.args, :rng)
+            rng = trial_iterator.args.rng
+        else
+            rng = StableRNG(rseed)
+        end
+    end
+    trialstruct = trial_iterator.args.trialstruct
     task_name = RNNTrialStructures.get_name(trialstruct)
     task_signature = RNNTrialStructures.signature(trialstruct)
     dname = joinpath(@__DIR__, "..", "data", "$(task_name)_$(string(task_signature,base=16))")
@@ -125,23 +139,7 @@ function train_model(trialstruct, nhidden::Int64;batchsize=256, randomize_go_cue
     noutputs = RNNTrialStructures.num_outputs(trialstruct)
 
     model = RecurrentNetworkModels.LeakyRNNModel(ninputs, nhidden, noutputs)
-    trial_iterator = RNNTrialStructures.generate_trials(trialstruct, batchsize;randomize_go_cue=randomize_go_cue,
-                                                        σ=σ, go_cue_onset_min=go_cue_onset_min, go_cue_onset_max=go_cue_onset_max,
-                                                        post_cue_multiplier=post_cue_multiplier,
-                                                        stim_onset_min=stim_onset_min, stim_onset_max=stim_onset_max,
-                                                        stim_onset_step=stim_onset_step, rng=rng, rseed=rseed)
     args_file = "trial_iterator_$(string(trial_iterator.arghash, base=16)).jld2"
-    args = Dict(:batchsize => batchsize,
-                :randomize_go_cue => randomize_go_cue,
-                :σ => σ,
-                :post_cue_multiplier => post_cue_multiplier,
-                :rng => rng,
-                :rseed => rseed,
-                :go_cue_onset_min => go_cue_onset_min,
-                :go_cue_onset_max => go_cue_onset_max,
-                :stim_onset_min => stim_onset_min,
-                :stim_onset_max => stim_onset_max,
-                :stim_onset_step => stim_onset_step)
 
     cd(dname) do
         # save only once since all models in this folder will use the same trial structure
@@ -156,7 +154,7 @@ function train_model(trialstruct, nhidden::Int64;batchsize=256, randomize_go_cue
                                                                                           learning_rate=learning_rate, accuracy_threshold=accuracy_threshold,
                                                                                           save_file="model_state.jld2",h=trial_iterator.arghash,rseed=rseed,
                                                                                           load_only=load_only)
-        return ps, model, trial_iterator
+        return ps, model
     end
 end
 
