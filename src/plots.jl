@@ -50,52 +50,57 @@ function show_task_schematic(::Type{RNNTrialStructures.NavigationTrial};pos=(0.5
     v = [cos.(θr) sin.(θr)]
     xq = [x y;x y]
     for i in 1:2
-        while all(0.0 .<= xq[i,:] + dl.*v[i,:] .<= 5.0)
+        while all(0.0 .<= xq[i,:] + dl.*v[i,:] .< 5.0)
             xq[i,:] .+= dl.*v[i,:]
         end
     end
-    @show xq vp
     Δ = 1000*eps(Float32)
+    horizontal_bins = [extrema(xq[:,1])...,]
+    vertical_bins = [extrema(xq[:,2])...,]
+    if vp[1] < -Δ && horizontal_bins[1] > Δ
+        horizontal_bins[1] = 0.0
+    elseif vp[1] > Δ && horizontal_bins[end] < 5.0
+        horizontal_bins[end] = 4.9 
+    end
+    if vp[2] > Δ && vertical_bins[end] < 5.0
+        vertical_bins[end] = 4.9 
+    elseif vp[2] < -Δ && vertical_bins[1] > Δ
+        vertical_bins[1] = 0.0
+    end
+    
+    vb1 = round(Int64, vertical_bins[1]/0.5)+1
+    vb2 = round(Int64, vertical_bins[2]/0.5)
+    vertical_bin_idx = range(vb1, vb2)
+    hb1 = round(Int64,horizontal_bins[1]/0.5)+1
+    hb2 = round(Int64, horizontal_bins[2]/0.5)
+    horizontal_bin_idx = range(hb1, hb2)
+    #vertical_bins[1] = min(y, vertical_bins[1])
+    #vertical_bins[2] = max(vertical_bins[2], 5.0)
+
+    # TODO: We do not necessarily always need to touch the sides
     for i in 1:2
-        if (abs(xq[i,1]) <= Δ) && (vp[1] < -Δ)
+        #if (abs(xq[i,1]) <= Δ)# && (vp[1] < -Δ)
+        if (v[i,1] < -Δ) && Δ .< xq[i,2] < 5.0-Δ
             # left edge 
             @show "left edge"
-            idx0 = round(Int64, y/0.5)
-            idx1 = round(Int64, xq[1,2]/0.5)
-            idx2 = round(Int64, xq[2,2]/0.5)
-            idxs = minimum([idx0,idx1,idx2]) 
-            idxe = maximum([idx0, idx1,idx2])
-            view_bins[1,idxs+1:idxe].= true
-        elseif (abs(xq[i,1]-5.0) <= Δ) && (vp[1] >= Δ)
+            view_bins[1,vertical_bin_idx] .= true
+        elseif (v[i,1] >= Δ) && ( Δ .<  xq[i,2] .< 5.0-Δ)
+        #elseif (abs(xq[i,1]-5.0) <= Δ)# && (vp[1] >= Δ)
             # right edge
             @show "right edge"
-            idx0 = round(Int64, y/0.5)
-            idx1 = round(Int64, xq[1,2]/0.5)
-            idx2 = round(Int64, xq[2,2]/0.5)
-            idxs = minimum([idx0,idx1,idx2]) 
-            idxe = maximum([idx0, idx1,idx2])
-            view_bins[3,idxs+1:idxe].= true
-        elseif (abs(xq[i,2]) <= Δ) && (vp[2] < -Δ)
+            view_bins[3,vertical_bin_idx].= true
+        end
+        #if (abs(xq[i,2]) <= Δ)# && (vp[2] < -Δ)
+        if (v[i,2] < -Δ) && (Δ .< xq[i,1] .< 5.0-Δ)
             # bottom edge
             @show "bottom edge"
-            idx0 = round(Int64, x/0.5)
-            idx1 = round(Int64, xq[1,1]/0.5)
-            idx2 = round(Int64, xq[2,1]/0.5)
-            idxs = minimum([idx0,idx1,idx2]) 
-            idxe = maximum([idx0,idx1,idx2])
-            view_bins[2,idxs+1:idxe].= true
+            view_bins[2,horizontal_bin_idx].= true
 
-        elseif (abs(xq[i,2]-5.0) <= Δ) && (vp[2] >= Δ)
+        #elseif (abs(xq[i,2]-5.0) <= Δ)
+        elseif (v[i,2] > Δ) && (Δ .< xq[i,1] .< 5.0-Δ)
             # upper edge
             @show "upper edge"
-            idx0 = round(Int64, x/0.5)
-            idx1 = round(Int64, xq[1,1]/0.5)
-            idx2 = round(Int64, xq[2,1]/0.5)
-            idxs = minimum([idx0,idx1,idx2]) 
-            idxe = maximum([idx0,idx1,idx2])
-            @show idxs:idxe
-            @show x xq[:,1]
-            view_bins[4,idxs+1:idxe].= true
+            view_bins[4,horizontal_bin_idx].= true
         end
     end
     fig = Figure()
