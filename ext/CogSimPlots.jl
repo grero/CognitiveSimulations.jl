@@ -559,6 +559,11 @@ end
 function CognitiveSimulations.plot_view_by_place_tuning(fig::Union{Figure, GridLayout})
     with_theme(plot_theme) do
         ax = Axis(fig[1,1])
+        ax.topspinevisible = true
+        ax.rightspinevisible = true
+        ax.xticklabelsvisible = false
+        ax.yticklabelsvisible = false
+        ax
     end
 end
 
