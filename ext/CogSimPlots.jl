@@ -562,6 +562,26 @@ function CognitiveSimulations.plot_view_by_place_tuning(fig::Union{Figure, GridL
     end
 end
 
+function CognitiveSimulations.plot_view_by_place_tuning(ii::AbstractMatrix{<:Union{Int64,Nothing}}, trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, x::AbstractArray{T,3}, y::AbstractArray{T,3}, idxe::AbstractVector{Int64}) where T <: Real
+    ncols, nrows = size(ii)
+    with_theme(plot_theme) do 
+        fig = Figure()
+        for j in 1:ncols
+            for i in 1:nrows
+                if ii[i,j] !== nothing
+                    ax = Axis(fig[i,j])
+                    ax.xticklabelsvisible = false
+                    ax.yticklabelsvisible = false
+                    ax.topspinevisible = true
+                    ax.rightspinevisible = true
+                    CognitiveSimulations.plot_view_by_place_tuning(ax, Observable(ii[i,j]), trialstruct, h, x, y, idxe)
+                end
+            end
+        end
+        fig
+    end
+end
+
 function CognitiveSimulations.plot_view_by_place_tuning(ax::Makie.AbstractAxis, ii::Observable{Int64}, trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, x::AbstractArray{T,3}, y::AbstractArray{T,3}, idxe::AbstractVector{Int64}) where T <: Real
     # Instead of plotting into separate axes, just draw the tuning curve centered on each of the keys of vq
     # set up colors for each point
