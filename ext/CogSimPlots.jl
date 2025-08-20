@@ -4,6 +4,7 @@ using CognitiveSimulations, Makie
 using CognitiveSimulations: RNNTrialStructures
 using LinearAlgebra
 using Makie: Colors
+using StatsBase
 
 plot_theme = theme_minimal()
 
@@ -342,7 +343,7 @@ function CognitiveSimulations.plot_connectivity_matrix(Wrr::Matrix{T};kwargs...)
     with_theme(plot_theme) do
         fig = Figure()
         lg = GridLayout(fig[1,1])
-        plot_connectivity_matrix!(lg, Wrr;kwargs...)
+        CognitiveSimulations.plot_connectivity_matrix!(lg, Wrr;kwargs...)
         fig
     end
 end
@@ -406,7 +407,7 @@ function CognitiveSimulations.plot_connectivity_matrix!(lg, Wrr::Matrix{T},x=1:s
     end
 end
 
-function CognitiveSimulations.plot_place_field(h::Matrix{T},y::Array{T,3},idxe=[1:size(h,1) for _ in 1:size(h,2)],bins=range(0.0, stop=1.0, step=0.2)) where T <: Real
+function CognitiveSimulations.plot_place_field2(h::Matrix{T},y::Array{T,3},idxe=[1:size(h,1) for _ in 1:size(h,2)],bins=range(0.0, stop=1.0, step=0.2)) where T <: Real
     nb,nt = size(h)
     hh = fit(Histogram, (y[1,1:idxe[1],1], y[2,1:idxe[1],1]),weights(h[1:idxe[1],1]),(bins,bins))
     for i in 2:nt
@@ -418,6 +419,417 @@ function CognitiveSimulations.plot_place_field(h::Matrix{T},y::Array{T,3},idxe=[
     ax = Axis(fig[1,1])
     hh = heatmap!(ax, hh.edges[1][1:end-1], hh.edges[2][1:end-1], hh.weights)
     Colorbar(fig[1,2],hh,label="Weight")
+    fig
+end
+
+function CognitiveSimulations.plot_place_field(trial::RNNTrialStructures.AbstractTrialStruct{T}, h::Matrix{T},y::Array{T,3},idxe=[1:size(h,1) for _ in 1:size(h,2)],bins=range(0.0, stop=1.0, step=0.2)) where T <: Real
+    zp = CognitiveSimulations.estimate_place_tuning(trial, h, y,idxe)
+    with_theme(plot_theme) do
+        fig = Figure()
+        ax = Axis(fig[1,1])
+        points = [Point2f(k) for k in keys(zp)]
+        vv = collect(values(zp))
+        hh = scatter!(ax, points, color=vv, colormap=:Purples, marker=:rect, markersize=0.1, markerspace=:data)
+        Colorbar(fig[1,2],hh,label="Weight")
+        fig
+    end
+end
+
+function CognitiveSimulations.plot_place_field(ax::Makie.AbstractAxis, ii::Observable{Int64}, trial::RNNTrialStructures.AbstractTrialStruct{T}, h::AbstractArray{T,3},y::Array{T,3},idxe=[1:size(h,1) for _ in 1:size(h,2)],bins=range(0.0, stop=1.0, step=0.2)) where T <: Real
+    zp = lift(ii) do _ii
+        CognitiveSimulations.estimate_place_tuning(trial, h[_ii,:,:], y,idxe)
+    end
+
+    points = lift(zp) do _zp
+        [Point2f(k) for k in keys(_zp)]
+    end
+
+    colors = lift(zp) do _zp
+        collect(values(_zp))
+    end
+    scatter!(ax, points, color=colors, colormap=:Purples, marker=:rect, markersize=0.1, markerspace=:data)
+    size(h,1)
+end
+
+function CognitiveSimulations.plot_place_field(fig::Union{Figure, GridLayout})
+    with_theme(plot_theme) do
+        ax = Axis(fig[1,1])
+        ax
+    end
+end
+
+function CognitiveSimulations.plot_view_tuning(trialstruct::RNNTrialStructures.NavigationTrial{T}, h::Matrix{T}, x::Array{T,3}, idxe::AbstractVector{Int64}) where T <: Real
+    zp,z, θ = CognitiveSimulations.estimate_view_tuning(trialstruct, h, x, idxe)
+    with_theme(plot_theme) do
+        fig = Figure()
+        ax = PolarAxis(fig[1,1])
+
+        plot_view_tuning!(ax, trialstruct,h,x,idxe)
+        fig
+    end
+end
+
+function CognitiveSimulations.plot_view_tuning(ax::Makie.AbstractAxis, ii::Observable{Int64}, trialstruct, h::AbstractArray{T,3}, x::Array{T,3}, idxe::AbstractVector{Int64};label::Union{Nothing,String}=nothing) where T <: Real
+    points = lift(ii) do _ii
+        zp,z, θ = CognitiveSimulations.estimate_view_tuning(trialstruct, h[_ii,:,:], x, idxe)
+        [Point2f(_θ, _z) for (_θ,_z) in zip(θ,z)]
+    end
+    on(points) do _points
+        reset_limits!(ax)
+    end
+    lines!(ax, points)
+    ax.rticklabelsvisible = false
+    ax.rgridvisible = true
+    ax.thetagridvisible = true
+    size(h,1)
+end
+
+function CognitiveSimulations.plot_view_and_hd_tuning(ax::Makie.AbstractAxis, ii::Observable{Int64}, trialstruct, h::AbstractArray{T,3}, x::Array{T,3}, idxe::AbstractVector{Int64};label::Union{Nothing,String}=nothing) where T <: Real
+    n = CognitiveSimulations.plot_view_tuning(ax, ii, trialstruct,h,x[1:16,:,:], idxe)
+    _ = CognitiveSimulations.plot_view_tuning(ax, ii, trialstruct,h,x[17:end,:,:], idxe)
+    n
+end
+
+function plot_view_tuning!(ax, trialstruct, h::Matrix{T}, x::Array{T,3}, idxe::AbstractVector{Int64};label::Union{Nothing,String}=nothing) where T <: Real
+    zp,z, θ = CognitiveSimulations.estimate_view_tuning(trialstruct, h, x, idxe)
+
+    lines!(ax, θ, z,label=label)
+    #lines!(ax, θ, zp)
+    ax.rticklabelsvisible = false
+    ax.rgridvisible = true
+    ax.thetagridvisible = true
+
+end
+
+function CognitiveSimulations.plot_view_and_hd_tuning(trialstruct::RNNTrialStructures.NavigationTrial{T}, h::Matrix{T}, x::AbstractArray{T,3}, idxe::AbstractVector{Int64}) where T <: Real
+    hh = reshape(h, 1, size(h)...)
+    CognitiveSimulations.plot_view_and_hd_tuning(1, trialstruct, hh,x,idxe)
+end
+
+function CognitiveSimulations.plot_view_and_hd_tuning(ii::Union{Int64, Observable{Int64}}, trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, x::AbstractArray{T,3}, idxe::AbstractVector{Int64};num_axes=2) where T <: Real
+    fig,axes = CognitiveSimulations.plot_view_and_hd_tuning(num_axes)
+    plot_view_and_hd_tuning!(axes, ii, trialstruct, h, x, idxe)
+    #hackish
+    if !(typeof(axes) <: NTuple{2})
+        axislegend(axes)
+    end
+    fig
+end
+
+function CognitiveSimulations.plot_view_and_hd_tuning(trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, x::AbstractArray{T,3}, idxe::AbstractVector{Int64};num_axes=2) where T <: Real
+    fig,axes = CognitiveSimulations.plot_view_and_hd_tuning(num_axes)
+    plot_view_and_hd_tuning!(axes, ii, trialstruct, h, x, idxe)
+    #hackish
+    if !(typeof(axes) <: NTuple{2})
+        axislegend(axes)
+    end
+    fig
+end
+
+function CognitiveSimulations.plot_view_and_hd_tuning(fig::Union{Figure, GridLayout};num_axes=1)
+    with_theme(plot_theme) do
+        ax1 = PolarAxis(fig[1,1])
+        axes = ax1
+        if num_axes == 2
+            ax1.title = "View"
+            ax2 = PolarAxis(fig[1,2])
+            ax2.title = "Head direction"
+            axes = (ax1,ax2)
+        end
+        axes
+    end
+end
+
+function CognitiveSimulations.plot_view_tuning(fig::Union{Figure,GridLayout})
+    with_theme(plot_theme) do
+        ax = PolarAxis(fig[1,1])
+    end
+end
+
+function plot_view_and_hd_tuning!(axes::NTuple{2, TT}, ii::Int64, trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, x::AbstractArray{T,3}, idxe::AbstractVector{Int64}) where T <: Real where TT <: Makie.AbstractAxis
+    plot_view_tuning!(axes[1], trialstruct, h[ii,:,:], x[1:16,:,:],idxe)
+    plot_view_tuning!(axes[2], trialstruct, h[ii,:,:], x[17:end,:,:],idxe)
+end
+
+function plot_view_and_hd_tuning!(ax::Makie.AbstractAxis, ii::Int64, trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, x::AbstractArray{T,3}, idxe::AbstractVector{Int64}) where T <: Real
+    plot_view_tuning!(ax, trialstruct, h[ii,:,:], x[1:16,:,:],idxe;label="View")
+    plot_view_tuning!(ax, trialstruct, h[ii,:,:], x[17:end,:,:],idxe;label="Head direction")
+end
+
+function CognitiveSimulations.plot_view_by_place_tuning(fig::Union{Figure, GridLayout})
+    with_theme(plot_theme) do
+        ax = Axis(fig[1,1])
+    end
+end
+
+function CognitiveSimulations.plot_view_by_place_tuning(ax::Makie.AbstractAxis, ii::Observable{Int64}, trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, x::AbstractArray{T,3}, y::AbstractArray{T,3}, idxe::AbstractVector{Int64}) where T <: Real
+    # Instead of plotting into separate axes, just draw the tuning curve centered on each of the keys of vq
+    # set up colors for each point
+    ncols = trialstruct.arena.ncols
+    colsize = trialstruct.arena.colsize
+    rowsize = trialstruct.arena.rowsize
+    nrows = trialstruct.arena.nrows
+    grid_pos = Tuple{T,T}[]
+    for i in 1:ncols
+        for j in 1:nrows
+            pp = RNNTrialStructures.get_position(i,j,trialstruct.arena)
+            pp = (0.8*pp[1]/(ncols*colsize)+0.05, 0.8*pp[2]/(nrows*rowsize)+0.05)
+            push!(grid_pos, pp)
+        end
+    end
+    colors = Observable(zeros(T,length(grid_pos)))
+    points = lift(ii) do _ii
+        vq = CognitiveSimulations.estimate_view_by_place_tuning(trialstruct, h[_ii,:,:], x, y, idxe)
+        _points = Point2f[]
+        _colors = zeros(T, length(colors[]))
+        for (k,v) in vq
+            θ,z = v
+            # a bit clunky
+            jj = argmin(map(kk->norm(k .- kk), grid_pos))
+            _colors[jj] = sum(z)
+            # normalize
+            z ./= sum(z)
+            # scale so that each radius is 0.2
+            z .= 0.075*z./maximum(z)
+            xx = k[1] .+ z.*cos.(θ)
+            yy = k[2] .+ z.*sin.(θ)
+            append!(_points, Point2f.(zip(xx,yy)))
+            push!(_points, Point2f(NaN))
+        end
+        colors[] = _colors
+        _points
+    end
+    scatter!(ax, Point2f.(grid_pos),color=colors,colormap=:Purples, markersize=0.05, markerspace=:data)
+    lines!(ax, points,color=:black)
+    size(h,1)
+end
+
+
+function plot_3d_snapshot!(ax, Z::Array{T,3}, θ::Matrix{T};t::Observable{Int64}=Observable(1),show_trajectories::Observable{Bool}=Observable(false),colormap=:phase)  where T <: Real
+     d,nbins,ntrials = size(Z)
+    ee = dropdims(mean(sum(abs2.(diff(Z,dims=2)), dims=1),dims=3),dims=(1,3))
+    μ = mean(Z, dims=3)
+    # random projection matrix
+    _W = diagm(fill(one(T), d))
+    W = Observable(_W[1:3,1:d])
+    rt = Observable(1)
+    do_pause = Observable(true)
+    R = 0.01*randn(d,d)
+    R  = R - permutedims(R) + diagm(fill(one(T),d))
+    on(rt) do _rt
+        W[] = W[]*R
+    end
+    # manually assign colors so that we can use them for the trajectories as well
+    k = 1
+    acolors = resample_cmap(colormap, size(θ,k))
+    sidx = sortperm(θ[:,k])
+    vidx = invperm(sidx)
+    pcolors = Observable(acolors[vidx])
+    points = lift(t,W) do _t, _W
+        Point3f.(eachcol(_W*(Z[:,_t, :] .- μ[:,_t,:])))
+    end
+    traj = lift(t,W) do _t, _W
+        [_t >= i >= 1 ? Point3f(_W*(Z[:, i, j] - μ[:,_t])) : Point3f(NaN) for j in 1:size(Z,3) for i in (_t-5):_t+1]
+    end
+    traj_color = lift(pcolors) do _pc
+         [_pc[j] for j in 1:size(θ,1) for i in 1:7]
+    end
+    scatter!(ax, points, color=pcolors)
+    ll = lines!(ax, traj, color=traj_color)
+    ll.visible = show_trajectories[]
+    on(show_trajectories) do _st
+        ll.visible = _st
+    end
+end
+
+function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3},θ::Matrix{T},timepoints::Vector{Int64},angle_idx=fill(1,length(timepoints));show_tickabels=false, show_axes_labels=false, kwargs...) where T <: Real
+    fig = Figure()
+    #axes = [Axis3(fig[1,i]) for i in 1:length(timepoints)]
+    for (i,(tp,ia)) in enumerate(zip(timepoints,angle_idx))
+        if length(ia) == 1
+            if ia == 1
+                cm = :phase
+            else
+                cm = :seaborn_icefire_gradient
+            end
+            ax = Axis3(fig[1,i])
+            plot_3d_snapshot!(ax, Z, θ[:,ia:ia];t=Observable(tp),colormap=cm, kwargs...)
+            if !show_tickabels
+                ax.xticklabelsvisible = false
+                ax.yticklabelsvisible = false
+                ax.zticklabelsvisible = false
+            end
+            if !show_axes_labels
+                ax.xlabelvisible = false
+                ax.ylabelvisible = false
+                ax.zlabelvisible = false
+            end
+        else
+            lg = GridLayout(fig[1,i])
+            axes = [Axis3(lg[j,1]) for j in 1:length(ia)]
+            for (j,(ax,_ia)) in enumerate(zip(axes, ia))
+                if _ia == 1
+                    cm = :phase
+                else
+                    cm = :seaborn_icefire_gradient
+                end
+                plot_3d_snapshot!(ax, Z, θ[:,_ia:_ia];t=Observable(tp),colormap=cm, kwargs...)
+                if !show_tickabels
+                    ax.xticklabelsvisible = false
+                    ax.yticklabelsvisible = false
+                    ax.zticklabelsvisible = false
+                end
+                if !show_axes_labels
+                    ax.xlabelvisible = false
+                    ax.ylabelvisible = false
+                    ax.zlabelvisible = false
+                end
+            end
+            if i == length(timepoints) # only show color bar for the last plot
+                lgc = GridLayout(fig[1,i+1])
+                for (j,_ia) in enumerate(ia)
+                    if _ia == 1
+                        cm = :phase
+                    else
+                        cm = :seaborn_icefire_gradient
+                    end
+                    Colorbar(lgc[j,1],limits=(minimum(θ), maximum(θ)), colormap=cm, label="θ$(_ia)")
+                end
+            end
+            rowgap!(lg, 1, 0.1)
+        end
+    end
+    # add labels
+    for (i,tp) in enumerate(timepoints)
+        Label(fig[1,i,Top()], "Time point $tp")
+    end
+    fig
+end
+
+function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3}, θ::Matrix{T};t::Observable{Int64}=Observable(1),show_trajectories::Observable{Bool}=Observable(false), trial_events::Vector{Int64}=Int64[], fname::String="snapshot.png",colormap=:phase) where T <: Real
+    is_saving = Observable(false)
+    d,nbins,ntrials = size(Z)
+    ee = dropdims(mean(sum(abs2.(diff(Z,dims=2)), dims=1),dims=3),dims=(1,3))
+    μ = mean(Z, dims=3)
+    # random projection matrix
+    _W = diagm(fill(one(T), d))
+    W = Observable(_W[1:3,1:d])
+    rt = Observable(1)
+    do_pause = Observable(true)
+    R = 0.01*randn(d,d)
+    R  = R - permutedims(R) + diagm(fill(one(T),d))
+    on(rt) do _rt
+        W[] = W[]*R
+    end
+    # manually assign colors so that we can use them for the trajectories as well
+    k = 1
+    acolors = resample_cmap(colormap, size(θ,k))
+    sidx = sortperm(θ[:,k])
+    vidx = invperm(sidx)
+    pcolors = Observable(acolors[vidx])
+    points = lift(t,W) do _t, _W
+        Point3f.(eachcol(_W*(Z[:,_t, :] .- μ[:,_t,:])))
+    end
+    traj = lift(t,W) do _t, _W
+        [_t >= i >= 1 ? Point3f(_W*(Z[:, i, j] - μ[:,_t])) : Point3f(NaN) for j in 1:size(Z,3) for i in (_t-5):_t+1]
+    end
+    traj_color = lift(pcolors) do _pc
+         [_pc[j] for j in 1:size(θ,1) for i in 1:7]
+    end
+
+    # if show trajectories, include fading trajectories of the last 5 points
+    fig = Figure()
+    ax = Axis3(fig[1,1])
+    cax = Colorbar(fig[1,2], limits=(minimum(θ), maximum(θ)), colormap=:phase)
+    cax.label = "θ1"
+    scatter!(ax, points, color=pcolors)
+    ll = lines!(ax, traj, color=traj_color)
+    ll.visible = show_trajectories[]
+    on(show_trajectories) do _st
+        ll.visible = _st
+    end
+    tt = textlabel!(ax, 0.05, 0.05, text="c : rotate color axis\nr : change projection\np : rotate projection\nt : toggle traces", space=:relative,
+              background_color=:black, alpha=0.2, text_align=(:left, :bottom))
+    on(events(fig).keyboardbutton) do event
+        if event.action == Keyboard.press || event.action == Keyboard.repeat
+            if event.key == Keyboard.left
+                t[] = max(0, t[]-1)
+            elseif event.key == Keyboard.right
+                t[] = min(size(Z,2), t[]+1)
+            elseif event.key == Keyboard.r
+                q,r = qr(randn(d,d))
+                W[] = permutedims(q[:,1:3])
+            elseif event.key == Keyboard.p
+                do_pause[] = !do_pause[]
+            elseif event.key == Keyboard.c
+                k = mod(k,size(θ,2))+1
+                sidx = sortperm(θ[:,k])
+                vidx = invperm(sidx)
+                pcolors[] = acolors[vidx]
+                cax.label = "θ$k"
+            elseif event.key == Keyboard.t
+                show_trajectories[] = !show_trajectories[]
+            elseif event.key == Keyboard.s
+                is_saving[] = true
+                bn,ex = splitext(fname)
+                _fname = replace(fname, ex => "_$(t[])$(ex)")
+                save(_fname, fig;px_per_unit=8)
+                is_saving[] = false
+            end
+        end
+        #autolimits!(ax)
+    end
+    # show the average enery
+    axe = Axis(fig[2,1])
+    lines!(axe, 2:length(ee)+1, ee, color=:black)
+    if !isempty(trial_events)
+        vlines!(axe, trial_events, color=Cycled(1))
+    end
+    vlines!(axe, t, color=:black, linestyle=:dot)
+
+    axe.ylabel = "Avg speed"
+    axe.xticklabelsvisible = false
+    axe.xgridvisible = false
+    axe.ygridvisible = false
+    axe.topspinevisible = false
+    axe.rightspinevisible = false
+    rowsize!(fig.layout, 2, Relative(0.2))
+    sl = Slider(fig[3,1], range=range(1, stop=size(Z,2), step=1), startvalue=t[], update_while_dragging=true)
+
+    on(t) do _t
+        _min,_max = extrema(Z[:,t[], :] .- μ[:,t[],:])
+        _mm = maximum(abs.([_min, _max]))
+        Δ = 2*_mm
+        _min = -_mm - 0.15*Δ
+        _max = _mm + 0.15*Δ
+        xlims!(ax, _min, _max)
+        ylims!(ax, _min, _max)
+        zlims!(ax, _min, _max)
+    end
+
+    on(is_saving) do _is_saving
+        tt.visible[] = !_is_saving
+        sl.blockscene.visible[] = !_is_saving
+    end
+
+    on(sl.value) do _v
+        if t[] != _v
+            t[] = _v
+        end
+    end
+
+    on(t) do _t
+        if sl.value[] != _t
+            set_close_to!(sl, _t)
+        end
+    end
+    @async while true
+        if !do_pause[]
+            rt[] = rt[] + 1
+        end
+        sleep(0.1)
+        yield()
+    end
     fig
 end
 
