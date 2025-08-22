@@ -882,4 +882,104 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3}, θ::Matrix{T};t::O
     fig
 end
 
+function CognitiveSimulations.plot_network_trials(Z::Array{T,3}, θ::Matrix{T};fname::String="network_trials.png", is_saving::Observable{Bool}=Observable(false), kwargs...) where T <: Real
+    # slightly hackish
+    d = size(Z,1)
+    fig = Figure()
+    if size(Z,1) == 1
+        ax = Axis(fig[1,1])
+    else
+        ax = Axis3(fig[1,1], xgridvisible=true, ygridvisible=true, zgridvisible=true, viewmode=:stretch)
+    end
+    ee = dropdims(mean(sum(abs2.(diff(Z,dims=2)), dims=1),dims=3),dims=(1,3))
+    cax = Colorbar(fig[1,2], limits=(minimum(θ), maximum(θ)), colormap=:phase)
+    cax.label = "θ1"
+    _W = diagm(fill(one(T), d))
+    W = Observable(_W[1:2,1:d])
+    k = Observable(1)
+    on(events(fig).keyboardbutton) do event
+        if event.action == Keyboard.press || event.action == Keyboard.repeat
+            if event.key == Keyboard.r
+                q,r = qr(randn(d,d))
+                W[] = permutedims(q[:,1:2])
+            elseif event.key == Keyboard.c
+                k[] = mod(k[],size(θ,2))+1
+                cax.label = "θ$(k[])"
+            elseif event.key == Keyboard.s
+                is_saving[] = true
+                save(fname, fig;px_per_unit=8)
+                is_saving[] = false
+            end
+
+        end
+    end
+    tl = textlabel!(ax, 0.05, 0.05, text="c : rotate color axis\nr : change projection\ns : save", space=:relative,
+              background_color=:black, alpha=0.2, text_align=(:left, :bottom))
+    on(is_saving) do _is_saving
+        tl.visible[] = !_is_saving
+    end
+    plot_network_trials!(ax, Z, θ, W;is_saving=is_saving, k=k, kwargs...)
+    ax.xlabel = "Time"
+    # axis for showing the average speed
+    ax2 = Axis(fig[2,1])
+    lines!(ax2, 2:(length(ee)+1), ee, color=:black)
+    if :trial_events in keys(kwargs)
+        ecolors = [:gray, :black, :red, :orange]
+        vlines!(ax2, kwargs[:trial_events], color=ecolors, linestyle=:dot)
+    end
+    ax2.topspinevisible = false
+    ax2.rightspinevisible = false
+    ax2.xgridvisible = false
+    ax2.ygridvisible = false
+    ax2.ylabel = "Avg speed"
+    ax2.xlabel = "Time"
+    rowsize!(fig.layout, 1, Relative(0.8))
+    fig
+end
+
+function plot_network_trials!(ax, Z::Array{T,3}, θ;kwargs...) where T <: Real
+    d = size(Z,1)
+    # random projection
+    _W = diagm(fill(one(T), d))
+    W = Observable(_W[1:2,1:d])
+    plot_network_trials!(ax, Z, θ, W;kwargs...)
+end
+
+function plot_network_trials!(ax, Z::Array{T,3}, θ::Matrix{T},W::Observable{Matrix{T}};k::Observable{Int64}=Observable(1), trial_events::Vector{Int64}=Int64[], is_saving::Observable{Bool}=Observable(false)) where T <: Real
+    _colors = resample_cmap(:phase, size(θ,1))
+    sidx = sortperm(θ[:,1])
+    vidx = invperm(sidx)
+    xt = [1:size(Z,2);]
+    μ = mean(Z, dims=(2,3))
+    # adjust the limits
+    _min, _max = extrema((Z .- μ)[:])
+    ylims!(_min, _max)
+    if size(Z,1) == 1
+        points = [i>size(Z,2) ? Point2f(NaN) : Point2f(xt[i], Z[1,i,j]-μ[1]) for j in 1:size(Z,3) for i in 1:size(Z,2)+1]
+    else
+        points = lift(W) do _W
+            [i>size(Z,2) ? Point3f(NaN) : Point3f(xt[i], (_W*(Z[:,i,j] .-μ[:,1,1]))...) for j in 1:size(Z,3) for i in 1:size(Z,2)+1]
+        end
+        zlims!(_min, _max)
+    end
+    colors = lift(k) do _k
+        sidx = sortperm(θ[:,_k])
+        vidx = invperm(sidx)
+        [_colors[vidx[j]] for j in 1:size(Z,3) for i in 1:size(Z,2)+1]
+    end
+    l = lines!(ax, points, color=colors)
+    if !isempty(trial_events)
+        #indicate events
+        length(trial_events) <= 4 || error("No enough colors for trial_events")
+        ecolors = [:gray, :black, :red, :orange]
+        points = lift(W) do _W
+            [Point3f(_event, _W*(Z[:,_event, j] .- μ[:,1,1])...) for _event in trial_events for j in 1:size(Z,3)]
+        end
+        colors = [parse(Colors.Colorant, ecolors[i]) for i in 1:length(trial_events) for j in 1:size(Z,3)]
+        scatter!(ax, points, color=colors)
+    end
+
+    ax,l
+end
+
 end
