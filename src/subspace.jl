@@ -1,3 +1,16 @@
+function mpca(X::Matrix{T}, θ::AbstractVector{T2}) where T <: Real where T2
+    # find the unique values
+    uθ = unique(θ)
+    sort!(uθ)
+    y = zeros(T, size(X,1), length(uθ))
+    for (i,_θ) in enumerate(uθ)
+        y[:,i] = dropdims(mean(X[:,θ.==_θ],dims=2),dims=2)
+    end
+    pca = fit(PCA, y)
+    Z = predict(pca, y)
+    Z, pca
+end
+
 """
     get_subspace(X::AbstractVector{T,3}, θ::Matrix{T2}, idx0::Int64) where T <: Real where T2
 
