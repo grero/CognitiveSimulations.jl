@@ -65,3 +65,41 @@ function estimate_view_by_place_tuning(trialstruct::RNNTrialStructures.Navigatio
     end
     vq
 end
+
+function estimate_view_by_place_tuning_interaction(trialstruct::RNNTrialStructures.NavigationTrial{T}, h::Matrix{T}, x::AbstractArray{T,3}, y::AbstractArray{T,3}, idxe::AbstractVector{Int64}) where T <: Real
+    # get view tuning for each place
+    vq = estimate_view_by_place_tuning(trialstruct, h, x, y, idxe)
+
+    # estimate overall view tuning
+    locations = collect(keys(vq))
+    pl = zeros(T,length(locations))
+    h12 = zero(T)
+    vz = zeros(T, length(vq[locations[1]][1]))
+    for (i,l) in enumerate(locations)
+        _,_vz = vq[l]
+        _pl = sum(_vz)
+        # skip locations with no activity
+        if _pl == zero(T)
+            continue
+        end
+        pl[i] = _pl
+        _vz ./= sum(_vz) #normalize
+        h12 += sum(filter(isfinite,_vz.*log2.(_vz).*pl[i]))
+        vz .+= _vz
+    end
+    h12 /= sum(pl)
+    pl ./= sum(pl)
+    vz ./= sum(vz)
+    h1 = -sum(filter(isfinite, log2.(vz).*vz))
+    h1, -h12
+end
+
+function estimate_view_by_place_tuning_interaction(trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, x::AbstractArray{T,3}, y::AbstractArray{T,3}, idxe::AbstractVector{Int64}) where T <: Real
+    nn = size(h,1)
+    hh = zeros(T, nn)
+    for i in 1:nn
+        h1,h12 = estimate_view_by_place_tuning_interaction(trialstruct, h[i,:,:], x, y, idxe)
+        hh[i] = h1-h12
+    end
+    hh
+end
