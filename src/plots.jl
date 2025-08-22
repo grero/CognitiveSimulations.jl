@@ -28,3 +28,7 @@ function plot_view_and_hd_tuning() end
 function plot_view_by_place_tuning() end
 
 function plot_3d_snapshot() end
+
+function plot_network_trials() end
+
+function animate_task() end
