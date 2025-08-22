@@ -331,7 +331,7 @@ function CognitiveSimulations.plot_trial(trial::RNNTrialStructures.NavigationTri
     fig
 end
 
-function CognitiveSimulations.plot_positions(trial::RNNTrialStructures.NavigationTrial{T}, position::AbstractArray{T,3}, position_true::AbstractArray{T,3},idxe=[size(position,2) for _ in 1:size(position,3)];do_rescale=true) where T <: Real
+function CognitiveSimulations.plot_positions(trial::RNNTrialStructures.NavigationTrial{T}, position::AbstractArray{T,3}, position_true::AbstractArray{T,3},idxe=[size(position,2) for _ in 1:size(position,3)];do_rescale=true, show_performance=false) where T <: Real
     eq = RNNTrialStructures.extent(trial.arena)
     if do_rescale
         y = ((position_true .- 0.05)/0.8).*eq
@@ -349,6 +349,13 @@ function CognitiveSimulations.plot_positions(trial::RNNTrialStructures.Navigatio
     scatter!(ax, Point2f.(eachcol(yy)))
     scatter!(ax, Point2f.(eachcol(ŷŷ)))
     linesegments!(ax, [(Point2f(_y), Point2f(_ŷ)) for (_y,_ŷ) in zip(eachcol(yy), eachcol(ŷŷ))],color=:gray)
+    if show_performance
+        ax2 = Axis(fig[1,2])
+        perf = RNNTrialStructures.performance(trial, position, position_true)
+        barplot!(ax2, 1:length(perf),perf)
+        ax2.ylabel = "Performance"
+        ax2.xlabel = "Step"
+    end
     fig
 end
 
