@@ -127,7 +127,9 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.Arena{T};p_
             # grab the possible steps at the current position
             _ipos = ipos[]
             i,j = _ipos[1]
+            _θ = _ipos[2]
             possible_steps = RNNTrialStructures.check_step(i,j,arena.ncols,arena.nrows)
+            _keys = events(fig).keyboardstate
             if event.key == Keyboard.p
                 do_pause[] = !do_pause[]
             elseif event.key == Keyboard.up
@@ -146,8 +148,12 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.Arena{T};p_
                 if (1,0) in possible_steps
                     i += 1
                 end
+            elseif event.key == Keyboard.minus
+                _θ += fov/2
+            elseif (Keyboard.equal in _keys) && ((Keyboard.right_shift in _keys) || (Keyboard.left_shift in _keys))
+                _θ -= fov/2
             end
-            ipos[] = ((i,j),_ipos[2])
+            ipos[] = ((i,j),_θ)
         end
     end
     @async while tt[] < ntrials 
