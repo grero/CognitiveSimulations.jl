@@ -982,4 +982,86 @@ function plot_network_trials!(ax, Z::Array{T,3}, θ::Matrix{T},W::Observable{Mat
     ax,l
 end
 
+
+function CognitiveSimulations.plot_path_length_tuning(ax::Makie.AbstractAxis, ii::Observable{Int64}, trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, position::AbstractArray{T,3},idxe::AbstractArray{Int64}) where T <: Real
+
+    nt = length(idxe)
+    path_length = T[]
+
+    for i in 1:nt
+        pl = cumsum(sqrt.(dropdims(sum(abs2, diff(position[:,1:idxe[i],i], dims=2),dims=1),dims=1)),dims=1)
+        append!(path_length, pl)
+    end
+    _idx = findall(isfinite, path_length)
+    points = lift(ii) do _ii
+        hh = T[]
+        for i in 1:nt
+            append!(hh, h[_ii,2:idxe[i],i])
+        end
+            
+        [Point2f(_pl, _h) for (_pl,_h) in zip(path_length[_idx], hh[_idx])]
+    end
+    on(points) do _points
+        autolimits!(ax)
+    end
+    scatter!(ax, points)
+    size(h,1)
+end
+
+function CognitiveSimulations.plot_path_length_tuning(fig::Union{Makie.Figure, Makie.GridLayout})
+    ax = Axis(fig[1,1])
+    ax.xlabel = "Path length"
+    ax.ylabel = "Activity"
+    ax
+end
+
+
+"""
+    CognitiveSimulations.plot_path_length_tuning(lg::Union{Makie.Figure, Makie.GridLayout}, trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, position::AbstractArray{T,3},idxe::AbstractArray{Int64}) where T <: Real
+
+A summary of the degree to which the hidden units with activity `h` represent the path length, calculated from `position`
+"""
+function CognitiveSimulations.plot_path_length_tuning(lg::Union{Makie.Figure, Makie.GridLayout}, trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, position::AbstractArray{T,3},unit_idx::AbstractVector{Int64};tuning_strength::Union{Nothing, Vector{T}}=nothing) where T <: Real
+    if tuning_strength === nothing
+        tuning_strength, params = CognitiveSimulations.estiamte_path_length_tuning(trialstruct, h, y, idxf)
+    end
+    tsidx = sortperm(tuning_strength)
+    path_length, idxf = CognitiveSimulations.get_path_length(trialstruct, position)
+    path_length_test, path_length_fitted = CognitiveSimulations.predict_path_length(trialstruct, h, position)
+    sidx = sortperm(path_length)
+    markersize=5px
+    with_theme(plot_theme) do
+        # show some examples of individual units with tuning
+        lg1 = GridLayout(lg[1,1])
+        axes = [Axis(lg1[i,1]) for i in 1:length(unit_idx)]
+        linkxaxes!(axes...)
+        labels = range(start='A', step=1, length=length(unit_idx))
+        for (i,(uidx,ax,label)) in enumerate(zip(unit_idx, axes, labels))
+            _, _, q, rss, rss_sh = CognitiveSimulations.estimate_path_length_tuning(h[uidx,idxf], path_length)
+            scatter!(ax, path_length, h[uidx,idxf],markersize=markersize)
+            lines!(ax, path_length[sidx], CognitiveSimulations.scaled_sigmoid.(path_length[sidx], q.minimizer...), color=:black)
+            suidx = findfirst(tsidx.==uidx)
+            ax.ylabel = "Unit $suidx activity" 
+            Label(lg1[i,1,TopLeft()],string(label),padding=label_padding)
+        end
+        axes[end].xlabel = "Path length"
+
+        # show summary tuning
+        lg2 = GridLayout(lg[1,2])
+        ax1 = Axis(lg2[1,1])
+        Label(lg2[1,1,TopLeft()],string(last(labels)+1), padding=label_padding)
+        barplot!(ax1, 1:length(tuning_strength), tuning_strength[tsidx],color=:darkgray)
+        ax1.xlabel = "Hidden unit index"
+        ax1.ylabel = "Path length tuning strength"
+
+        # show population fit
+        ax2 = Axis(lg2[2,1])
+        Label(lg2[2,1,TopLeft()], string(last(labels)+2), padding=label_padding)
+        scatter!(ax2, path_length_test, path_length_fitted[:],markersize=markersize)
+        ax2.xlabel = "Path length"
+        ax2.ylabel = "Path length fitted"
+    end
+    lg
+end
+
 end
