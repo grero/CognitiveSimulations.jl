@@ -1064,4 +1064,57 @@ function CognitiveSimulations.plot_path_length_tuning(lg::Union{Makie.Figure, Ma
     lg
 end
 
+function CognitiveSimulations.plot_position_manifold(trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, position::AbstractArray{T,3}) where T <: Real
+    path_length, idxf = CognitiveSimulations.get_path_length(trialstruct, position)
+    X = h[:,idxf]
+    pca = fit(PCA, X)
+    Xp = predict(pca, X)
+    _path = RNNTrialStructures.traverse_outwards(trialstruct.arena)
+    # convert to input positions
+    qpath = cat([[0.8f0*p[1]/10.0f0 + 0.05f0, 0.8f0*p[2]/10.0f0 +0.05f0] for p in _path]..., dims=2)
+    
+    #assign each position
+    cc = [argmin(dropdims(sum(abs2,position[:,idxf[i]] .- qpath,dims=1),dims=1)) for i in 1:length(idxf)]
+
+     with_theme(plot_theme) do
+        fig = Figure()
+        ax1 = Axis3(fig[1,1])
+        scatter!(ax1, Point3f.(eachcol(Xp[1:3,:])), color=cc)
+
+        ax2 = Axis(fig[2,1])
+        plot_grid!(ax2, trialstruct.arena.nrows, trialstruct.arena.ncols)
+        scatter!(ax2, Point2f.(_path), color=1:size(qpath,2), markersize=20px)
+        rowsize!(fig.layout, 1, Relative(0.6))
+        fig
+     end
+
+end
+
+function CognitiveSimulations.plot_view_angle_manifold(trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, position::AbstractArray{T,3}, view_angle::AbstractArray{T,3}) where T <: Real
+    path_length, idxf = CognitiveSimulations.get_path_length(trialstruct, position)
+    X = h[:,idxf]
+    pca = fit(PCA, X)
+    Xp = predict(pca, X)
+
+    θ = dropdims(mapslices(x->RNNTrialStructures.readout(trialstruct.angular_pref, x), view_angle, dims=1),dims=1)
+    θf = θ[idxf]
+
+     with_theme(plot_theme) do
+        fig = Figure()
+        ax1 = Axis3(fig[1,1], xgridvisible=true, ygridvisible=true, zgridvisible=true,
+                              xticklabelsvisible=false, yticklabelsvisible=false, zticklabelsvisible=false,
+                              xlabelvisible=false, ylabelvisible=false, zlabelvisible=false)
+        sc = scatter!(ax1, Point3f.(eachcol(Xp[1:3,:])), color=θf, colormap=:phase)
+        Colorbar(fig[1,2], sc, label="View angle")
+
+        ax2 = Axis3(fig[1,3],xgridvisible=true, ygridvisible=true, zgridvisible=true,
+                              xticklabelsvisible=false, yticklabelsvisible=false, zticklabelsvisible=false,
+                              xlabelvisible=false, ylabelvisible=false, zlabelvisible=false)
+        sc = scatter!(ax2, Point3f.(eachcol(Xp[1:3,:])), color=path_length)
+        Colorbar(fig[1,4], sc, label="Path length")
+        fig
+     end
+
+end
+
 end
