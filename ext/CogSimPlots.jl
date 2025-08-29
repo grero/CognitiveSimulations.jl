@@ -755,6 +755,50 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3},θ::Matrix{T},timep
     fig
 end
 
+function CognitiveSimulations.plot_manifold(Z::Matrix{T}, θ::Array{T}) where T <: Real
+    d,nt = size(Z)
+    μ = mean(Z, dims=2)
+    _W = diagm(fill(one(T), d))
+    W = Observable(_W[1:3,1:d])
+    do_pause = Observable(true)
+    rt = Observable(1)
+    R = 0.001*randn(T, d,d)
+    R  = R - permutedims(R) + diagm(fill(one(T),d))
+    on(rt) do _rt
+        W[] = W[]*R
+    end
+
+    points = lift(rt,W) do _t, _W
+        Point3f.(eachcol(_W*(Z.- μ)))
+    end
+
+    with_theme(plot_theme) do
+        fig = Figure()
+        ax = Axis3(fig[1,1], xgridvisible=true, ygridvisible=true, zgridvisible=true)
+        scatter!(ax, points, color=θ)
+        on(points) do _points
+            autolimits!(ax)
+        end
+        on(events(fig).keyboardbutton) do event
+            if event.action == Keyboard.press || event.action == Keyboard.repeat
+                if event.key == Keyboard.p
+                    do_pause[] = !do_pause[]
+                end
+            end
+        end
+        @async while true
+            if !do_pause[]
+                rt[] = rt[] +1
+            end
+            sleep(0.05)
+            yield()
+        end
+        display(fig)
+        fig
+    end
+
+end
+
 function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3}, θ::Matrix{T};t::Observable{Int64}=Observable(1),show_trajectories::Observable{Bool}=Observable(false), trial_events::Vector{Int64}=Int64[], fname::String="snapshot.png",colormap=:phase) where T <: Real
     is_saving = Observable(false)
     d,nbins,ntrials = size(Z)
