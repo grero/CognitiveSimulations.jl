@@ -5,6 +5,7 @@ using CognitiveSimulations: RNNTrialStructures
 using LinearAlgebra
 using Makie: Colors
 using StatsBase
+using MultivariateStats
 
 plot_theme = theme_minimal()
 
@@ -37,24 +38,37 @@ function plot_grid!(ax, nrows::Int64, ncols::Int64;rowsize=1, colsize=1, origin=
     end
     porigin = Point2f(origin)
     points = [(p1+porigin, p2+porigin) for (p1,p2) in points] 
-    linesegments!(ax, points)
+    linesegments!(ax, points,color=:gray)
 end
 
-function CognitiveSimulations.animate_task(arena::RNNTrialStructures.Arena{T};p_stay=T(0.5),p_hd=T(0.5), fov::T=T(π/3), ntrials=1000) where T <: Real
+function plot_grid!(ax, arena::RNNTrialStructures.Arena{T}, origin=(zero(T), zero(T))) where T <: Real
+    plot_grid!(ax, arena.nrows, arena.ncols;rowsize=arena.rowsize, colsize=arena.colsize, origin=origin)
+end
+
+function plot_grid!(ax, arena::RNNTrialStructures.MazeArena{T}, origin=(zero(T), zero(T))) where T <: Real
+    plot_grid!(ax, arena.nrows, arena.ncols;rowsize=arena.rowsize, colsize=arena.colsize, origin=origin)
+    # also show the obstacles 
+    obstacle_points = RNNTrialStructures.get_obstacle_points(arena)
+    for _points in obstacle_points
+        poly!(ax, _points, color=:gray)
+    end
+end
+
+function CognitiveSimulations.animate_task(arena::RNNTrialStructures.AbstractArena{T};p_stay=T(0.5),p_hd=T(0.5), fov::T=T(π/3), ntrials=1000) where T <: Real
     tt = Observable(1)
     w,h = RNNTrialStructures.extent(arena)
     x0,y0 = (w/2, h/2)
     r = sqrt((w-x0)^2 + (h-y0)^2)
     # inital position and head direction
     i,j = RNNTrialStructures.get_coordinate(arena)
-    θ = Float32(π/2)
+    θ = T(π/2)
     ipos = Observable(((i,j), θ))
     do_pause = Observable(false)
     on(tt) do _tt
         _ipos = ipos[]
         _θ = _ipos[2]
         i,j = _ipos[1]
-        Δθ = RNNTrialStructures.get_head_direction(Float32(fov/2), _θ;p_stay=p_stay)
+        Δθ = RNNTrialStructures.get_head_direction(fov/2, _θ;p_stay=p_stay)
         _θ += Δθ
         (i,j) = RNNTrialStructures.get_coordinate(i,j,arena, _θ;p_hd=p_hd)
 
@@ -81,24 +95,19 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.Arena{T};p_
         [(Point2f(_pos), Point2f(_pos)+Point2f(xp,yp))]
     end
 
-    #fov = lift(view_bins_xq,pos) do (_vb, xq), _pos
-    #    [(Point2f(pos), Point2f(xq[1,:])),(Point2f(pos), Point2f(xq[2,:]))]
-    #end
-
     fov_angles = lift(ipos) do _ipos
         i,j = _ipos[1]
         _θ = _ipos[2]
         _pos = RNNTrialStructures.get_position(i,j, arena)
        _Δθ  = RNNTrialStructures.get_view(_pos, _θ, arena;fov=fov)
-       _Δθ
-    end
-
-    fov_1 = lift(fov_angles) do _fov
-        _fov[1]
-    end
-
-    fov_2 = lift(fov_angles) do _fov
-        _fov[2]
+        # create manaul arcs
+        points = Point2f[]
+        for (θ1,θ2) in _Δθ
+            _θ = range(θ1, θ2, step=T(π/128))
+            append!(points, Point2f.(x0 .+ r*cos.(_θ), y0 .+ r*sin.(_θ)))
+            push!(points, Point2f(NaN))
+        end
+        points
     end
 
     fov_lines = lift(ipos) do _ipos
@@ -110,17 +119,38 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.Arena{T};p_
         [(Point2f(_pos), Point2f(xx1)), (Point2f(_pos), Point2f(xx2))]
     end
 
+    glines = lift(ipos) do _ipos
+       i,j = _ipos[1] 
+       _θ = _ipos[2]
+        _pos = RNNTrialStructures.get_position(i,j, arena)
+       _θs  = RNNTrialStructures.get_view(_pos, _θ, arena;fov=fov)
+       # _θs refers to angle with the center
+       # a line to each 
+       _points = Tuple{Point2f, Point2f}[]
+       for (θ1,θ2) in _θs
+            #xx1 = RNNTrialStructures.get_circle_intersection([x0,y0], r, _pos, θ1)
+            #xx2 = RNNTrialStructures.get_circle_intersection([x0,y0], r, _pos, θ2)
+            xx1 = (x0 + r*cos(θ1), y0 + r*sin(θ1))
+            xx2 = (x0 + r*cos(θ2), y0 + r*sin(θ2))
+            push!(_points, (Point2f(_pos), Point2f(xx1)))
+            push!(_points, (Point2f(_pos), Point2f(xx2)))
+       end
+       _points
+    end
+
     fig = Figure()
     ax = Axis(fig[1,1], aspect=1.0)
     circle_points = decompose(Point2f, Circle(Point2f(x0,y0), r))
     lines!(ax, circle_points, color=:black)
-    plot_grid!(ax, arena.ncols, arena.nrows;rowsize=arena.rowsize, colsize=arena.colsize)
+    plot_grid!(ax,arena) 
 
     scatter!(ax, pos, color=:black)
     linesegments!(ax, view_direction, color=:blue)
-    arc!(ax, Point2f(x0,y0), r, fov_1, fov_2, linewidth=2.0, color=:red)
+    #arc!(ax, Point2f(x0,y0), r, fov_1, fov_2, linewidth=2.0, color=:red)
+    lines!(ax, fov_angles, color=:red, linewidth=2.0)
 
     linesegments!(ax, fov_lines, color=:green)
+    linesegments!(ax, glines, color=:black)
   
     on(events(fig).keyboardbutton) do event
         if event.action == Keyboard.press || event.action == Keyboard.repeat
@@ -128,7 +158,7 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.Arena{T};p_
             _ipos = ipos[]
             i,j = _ipos[1]
             _θ = _ipos[2]
-            possible_steps = RNNTrialStructures.check_step(i,j,arena.ncols,arena.nrows)
+            possible_steps = RNNTrialStructures.check_step(i,j,arena)
             _keys = events(fig).keyboardstate
             if event.key == Keyboard.p
                 do_pause[] = !do_pause[]
@@ -153,12 +183,14 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.Arena{T};p_
             elseif (Keyboard.equal in _keys) && ((Keyboard.right_shift in _keys) || (Keyboard.left_shift in _keys))
                 _θ -= fov/2
             end
-            ipos[] = ((i,j),_θ)
+            ipos[] = ((i,j),mod(_θ,2π))
+            @show ipos[]
         end
     end
     @async while tt[] < ntrials 
         if !do_pause[]
             tt[] += 1
+            ax.title[] = "Step: $(tt[])"
             sleep(1.0)
         end
         yield()
@@ -331,7 +363,7 @@ function CognitiveSimulations.plot_trial(trial::RNNTrialStructures.NavigationTri
     fig
 end
 
-function CognitiveSimulations.plot_positions(trial::RNNTrialStructures.NavigationTrial{T}, position::AbstractArray{T,3}, position_true::AbstractArray{T,3},idxe=[size(position,2) for _ in 1:size(position,3)];do_rescale=true, show_performance=false) where T <: Real
+function CognitiveSimulations.plot_positions(trial::RNNTrialStructures.NavigationTrial{T}, position::AbstractArray{T,3}, position_true::AbstractArray{T,3},idxe=[size(position,2) for _ in 1:size(position,3)], trialidx=1:length(idxe);do_rescale=true, show_performance=false) where T <: Real
     eq = RNNTrialStructures.extent(trial.arena)
     if do_rescale
         y = ((position_true .- 0.05)/0.8).*eq
@@ -344,15 +376,16 @@ function CognitiveSimulations.plot_positions(trial::RNNTrialStructures.Navigatio
     fig = Figure()
     ax = Axis(fig[1,1])
     plot_grid!(ax, trial.arena.nrows, trial.arena.ncols;rowsize=trial.arena.rowsize, colsize=trial.arena.rowsize)
-    yy = cat([y[:,1:idxe[i],i] for i in 1:size(y,3)]...,dims=2)
-    ŷŷ = cat([ŷ[:,1:idxe[i],i] for i in 1:size(y,3)]...,dims=2)
+    yy = cat([y[:,1:idxe[i],i] for i in trialidx]...,dims=2)
+    ŷŷ = cat([ŷ[:,1:idxe[i],i] for i in trialidx]...,dims=2)
+    cc = cat([[1:idxe[i];] for i in trialidx]...,dims=1)
+    linesegments!(ax, [(Point2f(_y), Point2f(_ŷ)) for (_y,_ŷ) in zip(eachcol(yy), eachcol(ŷŷ))],color=Colors.RGB(0.8, 0.8, 0.8))
     scatter!(ax, Point2f.(eachcol(yy)))
-    scatter!(ax, Point2f.(eachcol(ŷŷ)))
-    linesegments!(ax, [(Point2f(_y), Point2f(_ŷ)) for (_y,_ŷ) in zip(eachcol(yy), eachcol(ŷŷ))],color=:gray)
+    scatter!(ax, Point2f.(eachcol(ŷŷ)),color=cc)
     if show_performance
         ax2 = Axis(fig[1,2])
         perf = RNNTrialStructures.performance(trial, position, position_true)
-        barplot!(ax2, 1:length(perf),perf)
+        barplot!(ax2, 1:length(perf),perf, color=1:length(perf))
         ax2.ylabel = "Performance"
         ax2.xlabel = "Step"
     end
@@ -755,6 +788,50 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3},θ::Matrix{T},timep
     fig
 end
 
+function CognitiveSimulations.plot_manifold(Z::Matrix{T}, θ::Array{T}) where T <: Real
+    d,nt = size(Z)
+    μ = mean(Z, dims=2)
+    _W = diagm(fill(one(T), d))
+    W = Observable(_W[1:3,1:d])
+    do_pause = Observable(true)
+    rt = Observable(1)
+    R = 0.001*randn(T, d,d)
+    R  = R - permutedims(R) + diagm(fill(one(T),d))
+    on(rt) do _rt
+        W[] = W[]*R
+    end
+
+    points = lift(rt,W) do _t, _W
+        Point3f.(eachcol(_W*(Z.- μ)))
+    end
+
+    with_theme(plot_theme) do
+        fig = Figure()
+        ax = Axis3(fig[1,1], xgridvisible=true, ygridvisible=true, zgridvisible=true)
+        scatter!(ax, points, color=θ)
+        on(points) do _points
+            autolimits!(ax)
+        end
+        on(events(fig).keyboardbutton) do event
+            if event.action == Keyboard.press || event.action == Keyboard.repeat
+                if event.key == Keyboard.p
+                    do_pause[] = !do_pause[]
+                end
+            end
+        end
+        @async while true
+            if !do_pause[]
+                rt[] = rt[] +1
+            end
+            sleep(0.05)
+            yield()
+        end
+        display(fig)
+        fig
+    end
+
+end
+
 function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3}, θ::Matrix{T};t::Observable{Int64}=Observable(1),show_trajectories::Observable{Bool}=Observable(false), trial_events::Vector{Int64}=Int64[], fname::String="snapshot.png",colormap=:phase) where T <: Real
     is_saving = Observable(false)
     d,nbins,ntrials = size(Z)
@@ -768,7 +845,8 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3}, θ::Matrix{T};t::O
     R = 0.01*randn(d,d)
     R  = R - permutedims(R) + diagm(fill(one(T),d))
     on(rt) do _rt
-        W[] = W[]*R
+        W1 = W[]*R
+        W[] = W1./sqrt.(sum(abs2,W1,dims=2))
     end
     # manually assign colors so that we can use them for the trajectories as well
     k = 1
@@ -925,7 +1003,7 @@ function CognitiveSimulations.plot_network_trials(Z::Array{T,3}, θ::Matrix{T};f
     lines!(ax2, 2:(length(ee)+1), ee, color=:black)
     if :trial_events in keys(kwargs)
         ecolors = [:gray, :black, :red, :orange]
-        vlines!(ax2, kwargs[:trial_events], color=ecolors, linestyle=:dot)
+        vlines!(ax2, kwargs[:trial_events], color=ecolors[1:length(kwargs[:trial_events])], linestyle=:dot)
     end
     ax2.topspinevisible = false
     ax2.rightspinevisible = false
@@ -945,12 +1023,16 @@ function plot_network_trials!(ax, Z::Array{T,3}, θ;kwargs...) where T <: Real
     plot_network_trials!(ax, Z, θ, W;kwargs...)
 end
 
-function plot_network_trials!(ax, Z::Array{T,3}, θ::Matrix{T},W::Observable{Matrix{T}};k::Observable{Int64}=Observable(1), trial_events::Vector{Int64}=Int64[], is_saving::Observable{Bool}=Observable(false)) where T <: Real
+function plot_network_trials!(ax, Z::Array{T,3}, θ::Matrix{T},W::Observable{Matrix{T}};k::Observable{Int64}=Observable(1), trial_events::Vector{Int64}=Int64[], is_saving::Observable{Bool}=Observable(false), centralize=true) where T <: Real
     _colors = resample_cmap(:phase, size(θ,1))
     sidx = sortperm(θ[:,1])
     vidx = invperm(sidx)
     xt = [1:size(Z,2);]
-    μ = mean(Z, dims=(2,3))
+    if centralize
+        μ = mean(Z, dims=(2,3))
+    else
+        μ = fill!(similar(Z), zero(T))
+    end
     # adjust the limits
     _min, _max = extrema((Z .- μ)[:])
     ylims!(_min, _max)
@@ -980,6 +1062,141 @@ function plot_network_trials!(ax, Z::Array{T,3}, θ::Matrix{T},W::Observable{Mat
     end
 
     ax,l
+end
+
+
+function CognitiveSimulations.plot_path_length_tuning(ax::Makie.AbstractAxis, ii::Observable{Int64}, trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, position::AbstractArray{T,3},idxe::AbstractArray{Int64}) where T <: Real
+
+    nt = length(idxe)
+    path_length = T[]
+
+    for i in 1:nt
+        pl = cumsum(sqrt.(dropdims(sum(abs2, diff(position[:,1:idxe[i],i], dims=2),dims=1),dims=1)),dims=1)
+        append!(path_length, pl)
+    end
+    _idx = findall(isfinite, path_length)
+    points = lift(ii) do _ii
+        hh = T[]
+        for i in 1:nt
+            append!(hh, h[_ii,2:idxe[i],i])
+        end
+            
+        [Point2f(_pl, _h) for (_pl,_h) in zip(path_length[_idx], hh[_idx])]
+    end
+    on(points) do _points
+        autolimits!(ax)
+    end
+    scatter!(ax, points)
+    size(h,1)
+end
+
+function CognitiveSimulations.plot_path_length_tuning(fig::Union{Makie.Figure, Makie.GridLayout})
+    ax = Axis(fig[1,1])
+    ax.xlabel = "Path length"
+    ax.ylabel = "Activity"
+    ax
+end
+
+
+"""
+    CognitiveSimulations.plot_path_length_tuning(lg::Union{Makie.Figure, Makie.GridLayout}, trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, position::AbstractArray{T,3},idxe::AbstractArray{Int64}) where T <: Real
+
+A summary of the degree to which the hidden units with activity `h` represent the path length, calculated from `position`
+"""
+function CognitiveSimulations.plot_path_length_tuning(lg::Union{Makie.Figure, Makie.GridLayout}, trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, position::AbstractArray{T,3},unit_idx::AbstractVector{Int64};tuning_strength::Union{Nothing, Vector{T}}=nothing) where T <: Real
+    if tuning_strength === nothing
+        tuning_strength, params = CognitiveSimulations.estiamte_path_length_tuning(trialstruct, h, y, idxf)
+    end
+    tsidx = sortperm(tuning_strength)
+    path_length, idxf = CognitiveSimulations.get_path_length(trialstruct, position)
+    path_length_test, path_length_fitted = CognitiveSimulations.predict_path_length(trialstruct, h, position)
+    sidx = sortperm(path_length)
+    markersize=5px
+    with_theme(plot_theme) do
+        # show some examples of individual units with tuning
+        lg1 = GridLayout(lg[1,1])
+        axes = [Axis(lg1[i,1]) for i in 1:length(unit_idx)]
+        linkxaxes!(axes...)
+        labels = range(start='A', step=1, length=length(unit_idx))
+        for (i,(uidx,ax,label)) in enumerate(zip(unit_idx, axes, labels))
+            _, _, q, rss, rss_sh = CognitiveSimulations.estimate_path_length_tuning(trialstruct, h[uidx,idxf], path_length)
+            scatter!(ax, path_length, h[uidx,idxf],markersize=markersize)
+            lines!(ax, path_length[sidx], CognitiveSimulations.scaled_sigmoid.(path_length[sidx], q.minimizer...), color=:black)
+            suidx = findfirst(tsidx.==uidx)
+            ax.ylabel = "Unit $suidx activity" 
+            Label(lg1[i,1,TopLeft()],string(label),padding=label_padding)
+        end
+        axes[end].xlabel = "Path length"
+
+        # show summary tuning
+        lg2 = GridLayout(lg[1,2])
+        ax1 = Axis(lg2[1,1])
+        Label(lg2[1,1,TopLeft()],string(last(labels)+1), padding=label_padding)
+        barplot!(ax1, 1:length(tuning_strength), tuning_strength[tsidx],color=:darkgray)
+        ax1.xlabel = "Hidden unit index"
+        ax1.ylabel = "Path length tuning strength"
+
+        # show population fit
+        ax2 = Axis(lg2[2,1])
+        Label(lg2[2,1,TopLeft()], string(last(labels)+2), padding=label_padding)
+        scatter!(ax2, path_length_test, path_length_fitted[:],markersize=markersize)
+        ax2.xlabel = "Path length"
+        ax2.ylabel = "Path length fitted"
+    end
+    lg
+end
+
+function CognitiveSimulations.plot_position_manifold(trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, position::AbstractArray{T,3}) where T <: Real
+    path_length, idxf = CognitiveSimulations.get_path_length(trialstruct, position)
+    X = h[:,idxf]
+    pca = fit(PCA, X)
+    Xp = predict(pca, X)
+    _path = RNNTrialStructures.traverse_outwards(trialstruct.arena)
+    # convert to input positions
+    qpath = cat([[0.8f0*p[1]/10.0f0 + 0.05f0, 0.8f0*p[2]/10.0f0 +0.05f0] for p in _path]..., dims=2)
+    
+    #assign each position
+    cc = [argmin(dropdims(sum(abs2,position[:,idxf[i]] .- qpath,dims=1),dims=1)) for i in 1:length(idxf)]
+
+     with_theme(plot_theme) do
+        fig = Figure()
+        ax1 = Axis3(fig[1,1])
+        scatter!(ax1, Point3f.(eachcol(Xp[1:3,:])), color=cc)
+
+        ax2 = Axis(fig[2,1])
+        plot_grid!(ax2, trialstruct.arena.nrows, trialstruct.arena.ncols)
+        scatter!(ax2, Point2f.(_path), color=1:size(qpath,2), markersize=20px)
+        rowsize!(fig.layout, 1, Relative(0.6))
+        fig
+     end
+
+end
+
+function CognitiveSimulations.plot_view_angle_manifold(trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, position::AbstractArray{T,3}, view_angle::AbstractArray{T,3}) where T <: Real
+    path_length, idxf = CognitiveSimulations.get_path_length(trialstruct, position)
+    X = h[:,idxf]
+    pca = fit(PCA, X)
+    Xp = predict(pca, X)
+
+    θ = dropdims(mapslices(x->RNNTrialStructures.readout(trialstruct.angular_pref, x), view_angle, dims=1),dims=1)
+    θf = θ[idxf]
+
+     with_theme(plot_theme) do
+        fig = Figure()
+        ax1 = Axis3(fig[1,1], xgridvisible=true, ygridvisible=true, zgridvisible=true,
+                              xticklabelsvisible=false, yticklabelsvisible=false, zticklabelsvisible=false,
+                              xlabelvisible=false, ylabelvisible=false, zlabelvisible=false)
+        sc = scatter!(ax1, Point3f.(eachcol(Xp[1:3,:])), color=θf, colormap=:phase)
+        Colorbar(fig[1,2], sc, label="View angle")
+
+        ax2 = Axis3(fig[1,3],xgridvisible=true, ygridvisible=true, zgridvisible=true,
+                              xticklabelsvisible=false, yticklabelsvisible=false, zticklabelsvisible=false,
+                              xlabelvisible=false, ylabelvisible=false, zlabelvisible=false)
+        sc = scatter!(ax2, Point3f.(eachcol(Xp[1:3,:])), color=path_length)
+        Colorbar(fig[1,4], sc, label="Path length")
+        fig
+     end
+
 end
 
 end

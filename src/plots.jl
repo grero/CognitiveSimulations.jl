@@ -32,3 +32,10 @@ function plot_3d_snapshot() end
 function plot_network_trials() end
 
 function animate_task() end
+
+function plot_path_length_tuning() end
+
+function plot_position_manifold() end
+function plot_view_angle_manifold() end
+
+function plot_manifold() end
