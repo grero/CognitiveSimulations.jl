@@ -1,3 +1,8 @@
+using Optim
+using LinearRegressionUtils
+
+scaled_sigmoid(x,a,b,c) =  a + b/(1+exp(-x*c))
+
 function estimate_place_tuning(trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T}, y::AbstractArray{T,3}) where T <: Real
     ncells,nb,nt = size(h)
     zp = Vector{Dict{Tuple{T,T},T}}(undef, ncells)
