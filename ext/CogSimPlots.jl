@@ -38,7 +38,20 @@ function plot_grid!(ax, nrows::Int64, ncols::Int64;rowsize=1, colsize=1, origin=
     end
     porigin = Point2f(origin)
     points = [(p1+porigin, p2+porigin) for (p1,p2) in points] 
-    linesegments!(ax, points)
+    linesegments!(ax, points,color=:gray)
+end
+
+function plot_grid!(ax, arena::RNNTrialStructures.Arena{T}, origin=(zero(T), zero(T))) where T <: Real
+    plot_grid!(ax, arena.nrows, arena.ncols;rowsize=arena.rowsize, colsize=arena.colsize, origin=origin)
+end
+
+function plot_grid!(ax, arena::RNNTrialStructures.MazeArena{T}, origin=(zero(T), zero(T))) where T <: Real
+    plot_grid!(ax, arena.nrows, arena.ncols;rowsize=arena.rowsize, colsize=arena.colsize, origin=origin)
+    # also show the obstacles 
+    obstacle_points = RNNTrialStructures.get_obstacle_points(arena)
+    for _points in obstacle_points
+        poly!(ax, _points, color=:gray)
+    end
 end
 
 function CognitiveSimulations.animate_task(arena::RNNTrialStructures.Arena{T};p_stay=T(0.5),p_hd=T(0.5), fov::T=T(π/3), ntrials=1000) where T <: Real
