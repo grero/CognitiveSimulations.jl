@@ -37,3 +37,5 @@ function plot_path_length_tuning() end
 
 function plot_position_manifold() end
 function plot_view_angle_manifold() end
+
+function plot_manifold() end
