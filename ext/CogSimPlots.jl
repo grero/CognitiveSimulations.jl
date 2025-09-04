@@ -54,21 +54,21 @@ function plot_grid!(ax, arena::RNNTrialStructures.MazeArena{T}, origin=(zero(T),
     end
 end
 
-function CognitiveSimulations.animate_task(arena::RNNTrialStructures.Arena{T};p_stay=T(0.5),p_hd=T(0.5), fov::T=T(π/3), ntrials=1000) where T <: Real
+function CognitiveSimulations.animate_task(arena::RNNTrialStructures.AbstractArena{T};p_stay=T(0.5),p_hd=T(0.5), fov::T=T(π/3), ntrials=1000) where T <: Real
     tt = Observable(1)
     w,h = RNNTrialStructures.extent(arena)
     x0,y0 = (w/2, h/2)
     r = sqrt((w-x0)^2 + (h-y0)^2)
     # inital position and head direction
     i,j = RNNTrialStructures.get_coordinate(arena)
-    θ = Float32(π/2)
+    θ = T(π/2)
     ipos = Observable(((i,j), θ))
     do_pause = Observable(false)
     on(tt) do _tt
         _ipos = ipos[]
         _θ = _ipos[2]
         i,j = _ipos[1]
-        Δθ = RNNTrialStructures.get_head_direction(Float32(fov/2), _θ;p_stay=p_stay)
+        Δθ = RNNTrialStructures.get_head_direction(fov/2, _θ;p_stay=p_stay)
         _θ += Δθ
         (i,j) = RNNTrialStructures.get_coordinate(i,j,arena, _θ;p_hd=p_hd)
 
@@ -95,24 +95,19 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.Arena{T};p_
         [(Point2f(_pos), Point2f(_pos)+Point2f(xp,yp))]
     end
 
-    #fov = lift(view_bins_xq,pos) do (_vb, xq), _pos
-    #    [(Point2f(pos), Point2f(xq[1,:])),(Point2f(pos), Point2f(xq[2,:]))]
-    #end
-
     fov_angles = lift(ipos) do _ipos
         i,j = _ipos[1]
         _θ = _ipos[2]
         _pos = RNNTrialStructures.get_position(i,j, arena)
        _Δθ  = RNNTrialStructures.get_view(_pos, _θ, arena;fov=fov)
-       _Δθ
-    end
-
-    fov_1 = lift(fov_angles) do _fov
-        _fov[1]
-    end
-
-    fov_2 = lift(fov_angles) do _fov
-        _fov[2]
+        # create manaul arcs
+        points = Point2f[]
+        for (θ1,θ2) in _Δθ
+            _θ = range(θ1, θ2, step=T(π/128))
+            append!(points, Point2f.(x0 .+ r*cos.(_θ), y0 .+ r*sin.(_θ)))
+            push!(points, Point2f(NaN))
+        end
+        points
     end
 
     fov_lines = lift(ipos) do _ipos
@@ -124,17 +119,38 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.Arena{T};p_
         [(Point2f(_pos), Point2f(xx1)), (Point2f(_pos), Point2f(xx2))]
     end
 
+    glines = lift(ipos) do _ipos
+       i,j = _ipos[1] 
+       _θ = _ipos[2]
+        _pos = RNNTrialStructures.get_position(i,j, arena)
+       _θs  = RNNTrialStructures.get_view(_pos, _θ, arena;fov=fov)
+       # _θs refers to angle with the center
+       # a line to each 
+       _points = Tuple{Point2f, Point2f}[]
+       for (θ1,θ2) in _θs
+            #xx1 = RNNTrialStructures.get_circle_intersection([x0,y0], r, _pos, θ1)
+            #xx2 = RNNTrialStructures.get_circle_intersection([x0,y0], r, _pos, θ2)
+            xx1 = (x0 + r*cos(θ1), y0 + r*sin(θ1))
+            xx2 = (x0 + r*cos(θ2), y0 + r*sin(θ2))
+            push!(_points, (Point2f(_pos), Point2f(xx1)))
+            push!(_points, (Point2f(_pos), Point2f(xx2)))
+       end
+       _points
+    end
+
     fig = Figure()
     ax = Axis(fig[1,1], aspect=1.0)
     circle_points = decompose(Point2f, Circle(Point2f(x0,y0), r))
     lines!(ax, circle_points, color=:black)
-    plot_grid!(ax, arena.ncols, arena.nrows;rowsize=arena.rowsize, colsize=arena.colsize)
+    plot_grid!(ax,arena) 
 
     scatter!(ax, pos, color=:black)
     linesegments!(ax, view_direction, color=:blue)
-    arc!(ax, Point2f(x0,y0), r, fov_1, fov_2, linewidth=2.0, color=:red)
+    #arc!(ax, Point2f(x0,y0), r, fov_1, fov_2, linewidth=2.0, color=:red)
+    lines!(ax, fov_angles, color=:red, linewidth=2.0)
 
     linesegments!(ax, fov_lines, color=:green)
+    linesegments!(ax, glines, color=:black)
   
     on(events(fig).keyboardbutton) do event
         if event.action == Keyboard.press || event.action == Keyboard.repeat
@@ -142,7 +158,7 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.Arena{T};p_
             _ipos = ipos[]
             i,j = _ipos[1]
             _θ = _ipos[2]
-            possible_steps = RNNTrialStructures.check_step(i,j,arena.ncols,arena.nrows)
+            possible_steps = RNNTrialStructures.check_step(i,j,arena)
             _keys = events(fig).keyboardstate
             if event.key == Keyboard.p
                 do_pause[] = !do_pause[]
@@ -167,12 +183,14 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.Arena{T};p_
             elseif (Keyboard.equal in _keys) && ((Keyboard.right_shift in _keys) || (Keyboard.left_shift in _keys))
                 _θ -= fov/2
             end
-            ipos[] = ((i,j),_θ)
+            ipos[] = ((i,j),mod(_θ,2π))
+            @show ipos[]
         end
     end
     @async while tt[] < ntrials 
         if !do_pause[]
             tt[] += 1
+            ax.title[] = "Step: $(tt[])"
             sleep(1.0)
         end
         yield()
