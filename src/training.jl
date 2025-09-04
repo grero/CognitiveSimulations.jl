@@ -37,7 +37,7 @@ function find_model(trial_iterator::RNNTrialStructures.TrialIterator;kwargs...)
             args = JLD2.load(mf)
             if "h0" in keys(args)
                 if args["h0"] == trial_iterator.arghash
-                    push!(model_files, mf)
+                    push!(model_files, joinpath(dname,mf))
                 end
 
             end
