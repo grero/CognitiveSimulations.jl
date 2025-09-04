@@ -5,6 +5,7 @@ using CognitiveSimulations: RNNTrialStructures
 using LinearAlgebra
 using Makie: Colors
 using StatsBase
+using MultivariateStats
 
 plot_theme = theme_minimal()
 
