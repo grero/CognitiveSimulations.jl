@@ -212,7 +212,7 @@ function estimate_path_length_tuning(trialstruct::RNNTrialStructures.NavigationT
     estimate_path_length_tuning(hh, path_length)
 end
 
-function estimate_path_length_tuning(hh::Vector{T}, path_length::Vector{T}) where T <: Real
+function estimate_path_length_tuning(trialstruct::RNNTrialStructures.NavigationTrial{T}, hh::Vector{T}, path_length::Vector{T}) where T <: Real
     # fit sigmoid
     func(abc) = sum(abs2, scaled_sigmoid.(path_length, abc...) - hh)
 
