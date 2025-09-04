@@ -1119,7 +1119,7 @@ function CognitiveSimulations.plot_path_length_tuning(lg::Union{Makie.Figure, Ma
         linkxaxes!(axes...)
         labels = range(start='A', step=1, length=length(unit_idx))
         for (i,(uidx,ax,label)) in enumerate(zip(unit_idx, axes, labels))
-            _, _, q, rss, rss_sh = CognitiveSimulations.estimate_path_length_tuning(h[uidx,idxf], path_length)
+            _, _, q, rss, rss_sh = CognitiveSimulations.estimate_path_length_tuning(trialstruct, h[uidx,idxf], path_length)
             scatter!(ax, path_length, h[uidx,idxf],markersize=markersize)
             lines!(ax, path_length[sidx], CognitiveSimulations.scaled_sigmoid.(path_length[sidx], q.minimizer...), color=:black)
             suidx = findfirst(tsidx.==uidx)
