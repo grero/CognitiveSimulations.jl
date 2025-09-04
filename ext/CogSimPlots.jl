@@ -846,7 +846,7 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3}, θ::Matrix{T};t::O
     R  = R - permutedims(R) + diagm(fill(one(T),d))
     on(rt) do _rt
         W1 = W[]*R
-        W[] = W1./sqrt.(sum(abs2,W,dims=2))
+        W[] = W1./sqrt.(sum(abs2,W1,dims=2))
     end
     # manually assign colors so that we can use them for the trajectories as well
     k = 1
