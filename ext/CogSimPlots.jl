@@ -363,7 +363,7 @@ function CognitiveSimulations.plot_trial(trial::RNNTrialStructures.NavigationTri
     fig
 end
 
-function CognitiveSimulations.plot_positions(trial::RNNTrialStructures.NavigationTrial{T}, position::AbstractArray{T,3}, position_true::AbstractArray{T,3},idxe=[size(position,2) for _ in 1:size(position,3)];do_rescale=true, show_performance=false) where T <: Real
+function CognitiveSimulations.plot_positions(trial::RNNTrialStructures.NavigationTrial{T}, position::AbstractArray{T,3}, position_true::AbstractArray{T,3},idxe=[size(position,2) for _ in 1:size(position,3)], trialidx=1:length(idxe);do_rescale=true, show_performance=false) where T <: Real
     eq = RNNTrialStructures.extent(trial.arena)
     if do_rescale
         y = ((position_true .- 0.05)/0.8).*eq
@@ -376,15 +376,16 @@ function CognitiveSimulations.plot_positions(trial::RNNTrialStructures.Navigatio
     fig = Figure()
     ax = Axis(fig[1,1])
     plot_grid!(ax, trial.arena.nrows, trial.arena.ncols;rowsize=trial.arena.rowsize, colsize=trial.arena.rowsize)
-    yy = cat([y[:,1:idxe[i],i] for i in 1:size(y,3)]...,dims=2)
-    ŷŷ = cat([ŷ[:,1:idxe[i],i] for i in 1:size(y,3)]...,dims=2)
+    yy = cat([y[:,1:idxe[i],i] for i in trialidx]...,dims=2)
+    ŷŷ = cat([ŷ[:,1:idxe[i],i] for i in trialidx]...,dims=2)
+    cc = cat([[1:idxe[i];] for i in trialidx]...,dims=1)
+    linesegments!(ax, [(Point2f(_y), Point2f(_ŷ)) for (_y,_ŷ) in zip(eachcol(yy), eachcol(ŷŷ))],color=Colors.RGB(0.8, 0.8, 0.8))
     scatter!(ax, Point2f.(eachcol(yy)))
-    scatter!(ax, Point2f.(eachcol(ŷŷ)))
-    linesegments!(ax, [(Point2f(_y), Point2f(_ŷ)) for (_y,_ŷ) in zip(eachcol(yy), eachcol(ŷŷ))],color=:gray)
+    scatter!(ax, Point2f.(eachcol(ŷŷ)),color=cc)
     if show_performance
         ax2 = Axis(fig[1,2])
         perf = RNNTrialStructures.performance(trial, position, position_true)
-        barplot!(ax2, 1:length(perf),perf)
+        barplot!(ax2, 1:length(perf),perf, color=1:length(perf))
         ax2.ylabel = "Performance"
         ax2.xlabel = "Step"
     end
