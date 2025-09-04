@@ -9,6 +9,7 @@ using StatsBase
 using MultivariateStats
 using Glob
 
+include("utils.jl")
 include("subspace.jl")
 include("training.jl")
 #include("random_sequence_task.jl")
