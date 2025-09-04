@@ -161,14 +161,21 @@ function estimate_view_by_place_tuning_interaction(vq::Dict{Tuple{T,T}, Tuple{Ve
     h1, -h12
 end
 
+"""
+Quantify the strength of the interaction between view and place tuning by the percentile of the
+real interaction strength with the respect to the interaction when the relationship between view and place was
+scrambled.
+"""
 function estimate_view_by_place_tuning_interaction(trialstruct::RNNTrialStructures.NavigationTrial{T}, h::AbstractArray{T,3}, x::AbstractArray{T,3}, y::AbstractArray{T,3}, idxe::AbstractVector{Int64}) where T <: Real
     nn = size(h,1)
     hh = zeros(T, nn)
+    hhs = zeros(T, nn)
     for i in 1:nn
-        h1,h12 = estimate_view_by_place_tuning_interaction(trialstruct, h[i,:,:], x, y, idxe)
-        hh[i] = h1-h12
+        h12,h12s = estimate_view_by_place_tuning_interaction(trialstruct, h[i,:,:], x, y, idxe)
+        hh[i] = h12
+        hhs[i] = percentile(h12s, 5)
     end
-    hh
+    hh,hhs
 end
 
 function estimate_path_length_tuning_2(trialstruct::RNNTrialStructures.NavigationTrial{T}, h::Matrix{T}, position::AbstractArray{T,3}) where T <: Real
