@@ -1003,7 +1003,7 @@ function CognitiveSimulations.plot_network_trials(Z::Array{T,3}, θ::Matrix{T};f
     lines!(ax2, 2:(length(ee)+1), ee, color=:black)
     if :trial_events in keys(kwargs)
         ecolors = [:gray, :black, :red, :orange]
-        vlines!(ax2, kwargs[:trial_events], color=ecolors, linestyle=:dot)
+        vlines!(ax2, kwargs[:trial_events], color=ecolors[1:length(kwargs[:trial_events])], linestyle=:dot)
     end
     ax2.topspinevisible = false
     ax2.rightspinevisible = false
