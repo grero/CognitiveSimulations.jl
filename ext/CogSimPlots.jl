@@ -880,7 +880,7 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3}, θ::Matrix{T};t::O
     on(events(fig).keyboardbutton) do event
         if event.action == Keyboard.press || event.action == Keyboard.repeat
             if event.key == Keyboard.left
-                t[] = max(0, t[]-1)
+                t[] = max(1, t[]-1)
             elseif event.key == Keyboard.right
                 t[] = min(size(Z,2), t[]+1)
             elseif event.key == Keyboard.r
