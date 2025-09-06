@@ -908,11 +908,11 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3}, θ::Matrix{T};t::O
     end
     # show the average enery
     axe = Axis(fig[2,1])
-    lines!(axe, 2:length(ee)+1, ee, color=:black)
+    lines!(axe, 2:length(ee)+1, ee, color=Cycled(1))
     if !isempty(trial_events)
         vlines!(axe, trial_events, color=Cycled(1))
     end
-    vlines!(axe, t, color=:black, linestyle=:dot)
+    vlines!(axe, t, color=Cycled(2), linestyle=:dot)
 
     axe.ylabel = "Avg speed"
     axe.xticklabelsvisible = false
