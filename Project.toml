@@ -1,20 +1,25 @@
 name = "CognitiveSimulations"
 uuid = "d518a2db-0ad9-4c39-9845-2af4103574d5"
 author = "Roger Herikstad <rherikstad@proton.me"
-version = "0.4.0"
+version = "0.5.0"
 
 [deps]
+BonitoBook = "b416d416-7a6e-4336-8c1a-1f8a8cd59518"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Glob = "c27321d9-0574-5035-807b-f59d2c89b15c"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LinearRegressionUtils = "41fc471e-1f5c-4b2d-bbd1-04f3567f437e"
+MakiePan = "b8849f7d-122b-4d15-b552-8c71f24d9996"
 MultivariateStats = "6f286f6a-111f-5878-ab1e-185364afe411"
+OneHotArrays = "0b1bfda6-eb8a-41d2-88d8-f5af5cad476f"
+Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 RNNTrialStructures = "1c0943b8-e38f-498f-b6a0-1f910535fd85"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 RecurrentNetworkModels = "60024d2f-e447-450b-ab68-c236a8c9f1ce"
 StableRNGs = "860ef19b-820b-49d6-a774-d7a799459cd3"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+WGLMakie = "276b4fcb-3e11-5398-bf8b-a0c2d153d008"
 
 [weakdeps]
 Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
@@ -23,15 +28,18 @@ MultiDimensionalTimeSeriesPlots = "72b6be8f-0b79-4fcf-b71d-125970ec4fc4"
 [extensions]
 CogSimPlots = ["Makie"]
 
-
 [compat]
+BonitoBook = "0.1.0"
 Distributions = "0.25.120"
 Glob = "1.3.1"
 JLD2 = "0.5.15"
 LinearAlgebra = "1.11.0"
 Makie = "0.24.3"
 MultivariateStats = "0.10.3"
-RNNTrialStructures = "0.4.0 - 0.9.0"
+OneHotArrays = "0.2.10"
+Optim = "1.13.2"
+RNNTrialStructures = "0.4.0 - 0.10.0"
 Random = "1.11.0"
-RecurrentNetworkModels = "0.6.0 - 0.7.0"
+RecurrentNetworkModels = "0.6.0 - 0.8.0"
 StableRNGs = "1.0.3"
+WGLMakie = "0.13.5"
