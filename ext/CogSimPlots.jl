@@ -731,8 +731,10 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3},θ::Matrix{T},timep
         if length(ia) == 1
             if ia == 1
                 cm = :phase
-            else
+            elseif ia == 2
                 cm = :seaborn_icefire_gradient
+            else
+                cm = :romaO
             end
             ax = Axis3(fig[1,i])
             plot_3d_snapshot!(ax, Z, θ[:,ia:ia];t=Observable(tp),colormap=cm, kwargs...)
@@ -752,8 +754,10 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3},θ::Matrix{T},timep
             for (j,(ax,_ia)) in enumerate(zip(axes, ia))
                 if _ia == 1
                     cm = :phase
-                else
+                elseif _ia == 2
                     cm = :seaborn_icefire_gradient
+                else
+                    cm = :romaO
                 end
                 plot_3d_snapshot!(ax, Z, θ[:,_ia:_ia];t=Observable(tp),colormap=cm, kwargs...)
                 if !show_tickabels
@@ -772,8 +776,10 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3},θ::Matrix{T},timep
                 for (j,_ia) in enumerate(ia)
                     if _ia == 1
                         cm = :phase
-                    else
+                    elseif _ia == 2
                         cm = :seaborn_icefire_gradient
+                    else
+                        cm = :romaO
                     end
                     Colorbar(lgc[j,1],limits=(minimum(θ), maximum(θ)), colormap=cm, label="θ$(_ia)")
                 end
@@ -880,7 +886,7 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3}, θ::Matrix{T};t::O
     on(events(fig).keyboardbutton) do event
         if event.action == Keyboard.press || event.action == Keyboard.repeat
             if event.key == Keyboard.left
-                t[] = max(0, t[]-1)
+                t[] = max(1, t[]-1)
             elseif event.key == Keyboard.right
                 t[] = min(size(Z,2), t[]+1)
             elseif event.key == Keyboard.r
@@ -908,11 +914,11 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3}, θ::Matrix{T};t::O
     end
     # show the average enery
     axe = Axis(fig[2,1])
-    lines!(axe, 2:length(ee)+1, ee, color=:black)
+    lines!(axe, 2:length(ee)+1, ee, color=Cycled(1))
     if !isempty(trial_events)
         vlines!(axe, trial_events, color=Cycled(1))
     end
-    vlines!(axe, t, color=:black, linestyle=:dot)
+    vlines!(axe, t, color=Cycled(2), linestyle=:dot)
 
     axe.ylabel = "Avg speed"
     axe.xticklabelsvisible = false
