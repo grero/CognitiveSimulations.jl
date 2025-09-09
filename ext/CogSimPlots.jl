@@ -731,8 +731,10 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3},θ::Matrix{T},timep
         if length(ia) == 1
             if ia == 1
                 cm = :phase
-            else
+            elseif ia == 2
                 cm = :seaborn_icefire_gradient
+            else
+                cm = :romaO
             end
             ax = Axis3(fig[1,i])
             plot_3d_snapshot!(ax, Z, θ[:,ia:ia];t=Observable(tp),colormap=cm, kwargs...)
@@ -752,8 +754,10 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3},θ::Matrix{T},timep
             for (j,(ax,_ia)) in enumerate(zip(axes, ia))
                 if _ia == 1
                     cm = :phase
-                else
+                elseif _ia == 2
                     cm = :seaborn_icefire_gradient
+                else
+                    cm = :romaO
                 end
                 plot_3d_snapshot!(ax, Z, θ[:,_ia:_ia];t=Observable(tp),colormap=cm, kwargs...)
                 if !show_tickabels
@@ -772,8 +776,10 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3},θ::Matrix{T},timep
                 for (j,_ia) in enumerate(ia)
                     if _ia == 1
                         cm = :phase
-                    else
+                    elseif _ia == 2
                         cm = :seaborn_icefire_gradient
+                    else
+                        cm = :romaO
                     end
                     Colorbar(lgc[j,1],limits=(minimum(θ), maximum(θ)), colormap=cm, label="θ$(_ia)")
                 end
