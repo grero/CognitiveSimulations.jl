@@ -138,6 +138,26 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.AbstractAre
        _points
     end
 
+    gpoints = lift(ipos) do _ipos
+        i,j = _ipos[1] 
+       _θ = _ipos[2]
+        _pos = RNNTrialStructures.get_position(i,j, arena)
+       _θs,_op  = RNNTrialStructures.get_view(_pos, _θ, arena;fov=fov)
+       [Point2f(p) for p in _op]
+    end
+
+    dpoints = Observable([Point2f(NaN) for _ in 1:16])
+    dcolors = Observable(zeros(Float32, 16))
+
+    on(ipos) do _ipos
+        i,j = _ipos[1] 
+       _θ = _ipos[2]
+        _pos = RNNTrialStructures.get_position(i,j, arena)
+        xp,dp = RNNTrialStructures.get_obstacle_intersection(_pos, range(_θ-fov/2, stop=_θ+fov/2, length=16), arena, _θ, fov)
+        dpoints[] = Point2f.(xp)
+        dcolors[] = dp
+    end
+
     fig = Figure()
     ax = Axis(fig[1,1], aspect=1.0)
     circle_points = decompose(Point2f, Circle(Point2f(x0,y0), r))
@@ -151,6 +171,8 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.AbstractAre
 
     linesegments!(ax, fov_lines, color=:green)
     linesegments!(ax, glines, color=:black)
+    scatter!(ax, gpoints, color=:black)
+    scatter!(ax, dpoints,color=dcolors)
   
     on(events(fig).keyboardbutton) do event
         if event.action == Keyboard.press || event.action == Keyboard.repeat
