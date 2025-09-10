@@ -988,6 +988,18 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3}, θ::Matrix{T};t::O
     fig
 end
 
+function CognitiveSimulations.plot_network_trials(Z::NTuple{2,Array{T,3}}, θ::NTuple{2,Matrix{T}};fname::String="network_trials.png", is_saving::Observable{Bool}=Observable(false), kwargs...) where T <: Real
+    with_theme(plot_theme) do
+        fig = Figure()
+        ax = Axis3(fig[1,1], xgridvisible=true, ygridvisible=true, zgridvisible=true, viewmode=:stretch)
+        cax = Colorbar(fig[1,2], limits=(minimum(θ[1]), maximum(θ[1])), colormap=:phase)
+        cax.label = "θ1"
+        plot_network_trials!(ax, Z[1], θ[1];linestyle=:solid)
+        plot_network_trials!(ax, Z[2], θ[2];linestyle=:dot)
+        fig
+    end
+end
+
 function CognitiveSimulations.plot_network_trials(Z::Array{T,3}, θ::Matrix{T};fname::String="network_trials.png", is_saving::Observable{Bool}=Observable(false), kwargs...) where T <: Real
     # slightly hackish
     d = size(Z,1)
