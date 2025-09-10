@@ -99,7 +99,7 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.AbstractAre
         i,j = _ipos[1]
         _θ = _ipos[2]
         _pos = RNNTrialStructures.get_position(i,j, arena)
-       _Δθ  = RNNTrialStructures.get_view(_pos, _θ, arena;fov=fov)
+       _Δθ,_  = RNNTrialStructures.get_view(_pos, _θ, arena;fov=fov)
         # create manaul arcs
         points = Point2f[]
         for (θ1,θ2) in _Δθ
@@ -123,7 +123,7 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.AbstractAre
        i,j = _ipos[1] 
        _θ = _ipos[2]
         _pos = RNNTrialStructures.get_position(i,j, arena)
-       _θs  = RNNTrialStructures.get_view(_pos, _θ, arena;fov=fov)
+       _θs,_op  = RNNTrialStructures.get_view(_pos, _θ, arena;fov=fov)
        # _θs refers to angle with the center
        # a line to each 
        _points = Tuple{Point2f, Point2f}[]
