@@ -1063,7 +1063,7 @@ function plot_network_trials!(ax, Z::Array{T,3}, θ;kwargs...) where T <: Real
     plot_network_trials!(ax, Z, θ, W;kwargs...)
 end
 
-function plot_network_trials!(ax, Z::Array{T,3}, θ::Matrix{T},W::Observable{Matrix{T}};k::Observable{Int64}=Observable(1), trial_events::Vector{Int64}=Int64[], is_saving::Observable{Bool}=Observable(false), centralize=true) where T <: Real
+function plot_network_trials!(ax, Z::Array{T,3}, θ::Matrix{T},W::Observable{Matrix{T}};k::Observable{Int64}=Observable(1), trial_events::Vector{Int64}=Int64[], is_saving::Observable{Bool}=Observable(false), centralize=true,linestyle=:solid) where T <: Real
     _colors = resample_cmap(:phase, size(θ,1))
     sidx = sortperm(θ[:,1])
     vidx = invperm(sidx)
@@ -1089,7 +1089,7 @@ function plot_network_trials!(ax, Z::Array{T,3}, θ::Matrix{T},W::Observable{Mat
         vidx = invperm(sidx)
         [_colors[vidx[j]] for j in 1:size(Z,3) for i in 1:size(Z,2)+1]
     end
-    l = lines!(ax, points, color=colors)
+    l = lines!(ax, points, color=colors, linestyle=linestyle)
     if !isempty(trial_events)
         #indicate events
         length(trial_events) <= 4 || error("No enough colors for trial_events")
