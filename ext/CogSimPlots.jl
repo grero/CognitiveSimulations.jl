@@ -64,14 +64,21 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.AbstractAre
     θ = T(π/2)
     ipos = Observable(((i,j), θ))
     do_pause = Observable(false)
+    p_stay_dynamic = p_stay
     on(tt) do _tt
         _ipos = ipos[]
         _θ = _ipos[2]
         i,j = _ipos[1]
-        Δθ = RNNTrialStructures.get_head_direction(fov/2, _θ;p_stay=p_stay)
+        Δθ = RNNTrialStructures.get_head_direction(fov/2, _θ;p_stay=p_stay_dynamic)
         _θ += Δθ
-        (i,j) = RNNTrialStructures.get_coordinate(i,j,arena, _θ;p_hd=p_hd)
-
+        (i1,j1) = RNNTrialStructures.get_coordinate(i,j,arena, _θ;p_hd=p_hd)
+        if abs(i1-i) + abs(j1-j) == 0
+            # reduce the probability of staying
+            p_stay_dynamic = max(zero(T), p_stay_dynamic*0.5f0)
+        else
+            p_stay_dynamic = p_stay
+        end
+        i,j = (i1,j1)
         ipos[] = ((i,j),_θ)
     end
 
@@ -988,6 +995,18 @@ function CognitiveSimulations.plot_3d_snapshot(Z::Array{T,3}, θ::Matrix{T};t::O
     fig
 end
 
+function CognitiveSimulations.plot_network_trials(Z::NTuple{2,Array{T,3}}, θ::NTuple{2,Matrix{T}};fname::String="network_trials.png", is_saving::Observable{Bool}=Observable(false), kwargs...) where T <: Real
+    with_theme(plot_theme) do
+        fig = Figure()
+        ax = Axis3(fig[1,1], xgridvisible=true, ygridvisible=true, zgridvisible=true, viewmode=:stretch)
+        cax = Colorbar(fig[1,2], limits=(minimum(θ[1]), maximum(θ[1])), colormap=:phase)
+        cax.label = "θ1"
+        plot_network_trials!(ax, Z[1], θ[1];linestyle=:solid)
+        plot_network_trials!(ax, Z[2], θ[2];linestyle=:dot)
+        fig
+    end
+end
+
 function CognitiveSimulations.plot_network_trials(Z::Array{T,3}, θ::Matrix{T};fname::String="network_trials.png", is_saving::Observable{Bool}=Observable(false), kwargs...) where T <: Real
     # slightly hackish
     d = size(Z,1)
@@ -1051,7 +1070,7 @@ function plot_network_trials!(ax, Z::Array{T,3}, θ;kwargs...) where T <: Real
     plot_network_trials!(ax, Z, θ, W;kwargs...)
 end
 
-function plot_network_trials!(ax, Z::Array{T,3}, θ::Matrix{T},W::Observable{Matrix{T}};k::Observable{Int64}=Observable(1), trial_events::Vector{Int64}=Int64[], is_saving::Observable{Bool}=Observable(false), centralize=true) where T <: Real
+function plot_network_trials!(ax, Z::Array{T,3}, θ::Matrix{T},W::Observable{Matrix{T}};k::Observable{Int64}=Observable(1), trial_events::Vector{Int64}=Int64[], is_saving::Observable{Bool}=Observable(false), centralize=true,linestyle=:solid) where T <: Real
     _colors = resample_cmap(:phase, size(θ,1))
     sidx = sortperm(θ[:,1])
     vidx = invperm(sidx)
@@ -1077,7 +1096,7 @@ function plot_network_trials!(ax, Z::Array{T,3}, θ::Matrix{T},W::Observable{Mat
         vidx = invperm(sidx)
         [_colors[vidx[j]] for j in 1:size(Z,3) for i in 1:size(Z,2)+1]
     end
-    l = lines!(ax, points, color=colors)
+    l = lines!(ax, points, color=colors, linestyle=linestyle)
     if !isempty(trial_events)
         #indicate events
         length(trial_events) <= 4 || error("No enough colors for trial_events")
