@@ -1,9 +1,11 @@
 function load_model(fname::String)
-    ps,st = JLD2.load(fname, "params","state")
-    pf = split(fname, '_')
-    insert!(pf, length(pf), "args")
-    params_file = join(pf, '_')
-    args = JLD2.load(params_file)
+    model, ps,st = RecurrentNetworkModels.LeakyRNNModel(fname)
+    if occursin("args", fname)
+        fname_args = fname
+    else
+        fname_args = replace(fname, "state_","state_args_")
+    end
+    args = JLD2.load(fname_args)
     pp = splitpath(fname)
     # get the directory name
     dname = joinpath(pp[1:end-1])
@@ -21,12 +23,9 @@ function load_model(fname::String)
     kwargs = NamedTuple{filter(k->!in([:ntrials, :trialstruct, :dt, :Δθstep])(k), keys(trials_args))}(trials_args)
     #hack
 
-    @show keys(kwargs)
     trial_iterator = RNNTrialStructures.generate_trials(trialstruct, trials_args.ntrials, trials_args.dt;hd_step=hd_step, kwargs...)
-    n_hh, n_in = size(ps.rnn_cell.weight_ih)
-    n_out = RNNTrialStructures.num_outputs(trialstruct)
-    model = RecurrentNetworkModels.LeakyRNNModel(n_in, n_hh, n_out)
     model, ps, st, args, trial_iterator 
+    model, ps, st, trial_iterator 
 end
 
 function find_model(trial_iterator::RNNTrialStructures.TrialIterator;kwargs...)
