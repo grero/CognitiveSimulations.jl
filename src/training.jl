@@ -52,12 +52,12 @@ function find_model(trial_iterator::RNNTrialStructures.TrialIterator;kwargs...)
     model_files
 end
 
-function find_model(trialstruct::RNNTrialStructures.AbstractTrialStruct;kwargs...)
+function find_model(trialstruct::RNNTrialStructures.AbstractTrialStruct;datadir=joinpath(@__DIR__, "..", "data"), kwargs...)
     dargs = Dict(kwargs)
     # find the directory for the requested trialstruct
     task_name = RNNTrialStructures.get_name(trialstruct)
     task_signature = RNNTrialStructures.signature(trialstruct)
-    dname = joinpath(@__DIR__, "..", "data", "$(task_name)_$(string(task_signature,base=16))")
+    dname = joinpath(datadir, "$(task_name)_$(string(task_signature,base=16))")
     # find all trial_iterator files
     args_file = "trial_iterator_*.jld2"
     cd(dname) do
