@@ -1,7 +1,7 @@
 name = "CognitiveSimulations"
 uuid = "d518a2db-0ad9-4c39-9845-2af4103574d5"
 author = "Roger Herikstad <rherikstad@proton.me"
-version = "0.6.0"
+version = "0.8.0"
 
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
