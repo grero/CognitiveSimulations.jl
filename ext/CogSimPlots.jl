@@ -385,7 +385,7 @@ function CognitiveSimulations.plot_trial(trial::RNNTrialStructures.NavigationTri
     fig
 end
 
-function CognitiveSimulations.plot_positions(trial::RNNTrialStructures.NavigationTrial{T}, position::AbstractArray{T,3}, position_true::AbstractArray{T,3},idxe=[size(position,2) for _ in 1:size(position,3)], trialidx=1:length(idxe);do_rescale=true, show_performance=false) where T <: Real
+function CognitiveSimulations.plot_positions(trial::RNNTrialStructures.NavigationTrial{T}, position::AbstractArray{T,3}, position_true::AbstractArray{T,3}; trialidx=1:size(position,3),do_rescale=true, show_performance=false) where T <: Real
     eq = RNNTrialStructures.extent(trial.arena)
     if do_rescale
         y = ((position_true .- 0.05)/0.8).*eq
@@ -394,7 +394,15 @@ function CognitiveSimulations.plot_positions(trial::RNNTrialStructures.Navigatio
         y = position_true
         ŷ = position
     end
-
+    idxe = fill(0, size(position,3))
+    for i in 1:length(idxe)
+        ii = findfirst(position_true[1,:,i] .== -1)
+        if ii === nothing
+            idxe[i] = size(y,2)
+        else
+            idxe[i] = ii-1
+        end
+    end
     fig = Figure()
     ax = Axis(fig[1,1])
     plot_grid!(ax, trial.arena.nrows, trial.arena.ncols;rowsize=trial.arena.rowsize, colsize=trial.arena.rowsize)
