@@ -17,10 +17,16 @@ function load_model(fname::String)
     else
         trials_args = Dict()
     end
-    kwargs = NamedTuple{filter(k->!in([:ntrials, :trialstruct])(k), keys(trials_args))}(trials_args)
+    hd_step = trials_args[:Δθstep]
+    kwargs = NamedTuple{filter(k->!in([:ntrials, :trialstruct, :dt, :Δθstep])(k), keys(trials_args))}(trials_args)
+    #hack
+
     @show keys(kwargs)
-    trial_iterator = RNNTrialStructures.generate_trials(trialstruct, trials_args.ntrials;kwargs...)
-    ps, st, args, trial_iterator 
+    trial_iterator = RNNTrialStructures.generate_trials(trialstruct, trials_args.ntrials, trials_args.dt;hd_step=hd_step, kwargs...)
+    n_hh, n_in = size(ps.rnn_cell.weight_ih)
+    n_out = RNNTrialStructures.num_outputs(trialstruct)
+    model = RecurrentNetworkModels.LeakyRNNModel(n_in, n_hh, n_out)
+    model, ps, st, args, trial_iterator 
 end
 
 function find_model(trial_iterator::RNNTrialStructures.TrialIterator;kwargs...)
@@ -46,12 +52,12 @@ function find_model(trial_iterator::RNNTrialStructures.TrialIterator;kwargs...)
     model_files
 end
 
-function find_model(trialstruct::RNNTrialStructures.AbstractTrialStruct;kwargs...)
+function find_model(trialstruct::RNNTrialStructures.AbstractTrialStruct;datadir=joinpath(@__DIR__, "..", "data"), kwargs...)
     dargs = Dict(kwargs)
     # find the directory for the requested trialstruct
     task_name = RNNTrialStructures.get_name(trialstruct)
     task_signature = RNNTrialStructures.signature(trialstruct)
-    dname = joinpath(@__DIR__, "..", "data", "$(task_name)_$(string(task_signature,base=16))")
+    dname = joinpath(datadir, "$(task_name)_$(string(task_signature,base=16))")
     # find all trial_iterator files
     args_file = "trial_iterator_*.jld2"
     cd(dname) do
