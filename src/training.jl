@@ -57,6 +57,9 @@ function find_model(trialstruct::RNNTrialStructures.AbstractTrialStruct;datadir=
     task_name = RNNTrialStructures.get_name(trialstruct)
     task_signature = RNNTrialStructures.signature(trialstruct)
     dname = joinpath(datadir, "$(task_name)_$(string(task_signature,base=16))")
+    if !isdir(dname)
+        return String[], String[]
+    end
     # find all trial_iterator files
     args_file = "trial_iterator_*.jld2"
     cd(dname) do
