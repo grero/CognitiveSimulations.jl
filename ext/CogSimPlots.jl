@@ -224,7 +224,6 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.AbstractAre
                 _θ -= fov/2
             end
             ipos[] = ((i,j),mod(_θ,2π))
-            @show ipos[]
         end
     end
     @async while tt[] < ntrials 
