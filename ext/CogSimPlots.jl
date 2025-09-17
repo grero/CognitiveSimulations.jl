@@ -155,14 +155,24 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.AbstractAre
 
     dpoints = Observable([Point2f(NaN) for _ in 1:16])
     dcolors = Observable(zeros(Float32, 16))
+    tpoints = Observable([Point2f(NaN) for _ in 1:16])
+    tcolors = Observable(fill(Makie.wong_colors()[1], 16))
 
     on(ipos) do _ipos
         i,j = _ipos[1] 
        _θ = _ipos[2]
         _pos = RNNTrialStructures.get_position(i,j, arena)
-        xp,dp = RNNTrialStructures.get_obstacle_intersection(_pos, range(_θ-fov/2, stop=_θ+fov/2, length=16), arena, _θ, fov)
+        xp,dp,tt = RNNTrialStructures.get_texture(_pos, range(_θ-fov/2, stop=_θ+fov/2, length=16), arena, _θ, fov)
         dpoints[] = Point2f.(xp)
         dcolors[] = dp
+        # hackish
+        _tpoints = tpoints[]
+        for (kk,_xp) in enumerate(xp)
+            _dd = _xp .- _pos
+            _tpoints[kk] = Point2f(_pos .+ 1.1*_dd)
+        end
+        tpoints[] = _tpoints 
+        tcolors[] = Makie.wong_colors()[round.(Int64,tt.+1)]
     end
 
     fig = Figure()
@@ -180,6 +190,7 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.AbstractAre
     linesegments!(ax, glines, color=:black)
     scatter!(ax, gpoints, color=:black)
     scatter!(ax, dpoints,color=dcolors)
+    scatter!(ax, tpoints, color=tcolors)
   
     on(events(fig).keyboardbutton) do event
         if event.action == Keyboard.press || event.action == Keyboard.repeat
@@ -213,7 +224,6 @@ function CognitiveSimulations.animate_task(arena::RNNTrialStructures.AbstractAre
                 _θ -= fov/2
             end
             ipos[] = ((i,j),mod(_θ,2π))
-            @show ipos[]
         end
     end
     @async while tt[] < ntrials 
